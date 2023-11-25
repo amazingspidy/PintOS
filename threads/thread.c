@@ -221,6 +221,17 @@ thread_block (void) {
    이 함수는 실행 중인 스레드를 선점하지 않습니다. 이것은 중요할 수 있습니다:
    호출자가 스스로 인터럽트를 비활성화한 경우, 스레드를 원자적으로 차단 해제하고
    다른 데이터를 업데이트할 수 있기를 기대할 수 있습니다. */
+// 리스트에 삽입될 때 우선순위를 비교하는 함수
+
+
+bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *aux) {
+    struct thread *thread_a = list_entry(a, struct thread, elem);
+    struct thread *thread_b = list_entry(b, struct thread, elem);
+
+    return thread_a->priority > thread_b->priority;
+}
+
+
 void
 thread_unblock (struct thread *t) {
 	enum intr_level old_level;
@@ -229,7 +240,8 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
-	list_push_back (&ready_list, &t->elem);
+	//list_push_back (&ready_list, &t->elem);
+	list_insert_ordered(&ready_list, & t-> elem, cmp_priority, NULL);
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
 }
@@ -290,7 +302,8 @@ thread_yield (void) {
 
 	old_level = intr_disable ();
 	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
+		//list_push_back (&ready_list, &curr->elem);
+		list_insert_ordered(&ready_list, &curr-> elem, cmp_priority, NULL); //for priority...
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -327,9 +340,9 @@ thread_wakeup(int64_t ticks) {
 		if (t->wake_up_time <= ticks) {
 			e = list_remove(e);
 			thread_unblock(t); //status를 READY로 바꾸고, ready_list에 push까지 하는함수.
-			printf("%d tick 시점에서 %s 언블록완료 cur_thread = %s\n", ticks, t->name, thread_name());
-			print_ready_list();
-			print_sleep_list();
+			// printf("%d tick 시점에서 %s 언블록완료 cur_thread = %s\n", ticks, t->name, thread_name());
+			// print_ready_list();
+			// print_sleep_list();
 			e = list_prev(e);  //이걸 해주는 이유는 list_remove(e)가 진행되면, 그 다음노드를 e로가져옴. 한칸 뒤로땡겨주기.
 		}
     }

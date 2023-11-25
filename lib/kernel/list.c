@@ -75,11 +75,6 @@ list_begin (struct list *list) {
    undefined if ELEM is itself a list tail. */
 struct list_elem *
 list_next (struct list_elem *elem) {
-	if (!(is_head(elem) || is_interior (elem))) {
-
-		printf("%d  %d\n", is_head(elem), is_interior(elem));
-		printf("여기서 발생합니다.\n");
-	}
 	ASSERT (is_head (elem) || is_interior (elem));
 	return elem->next;
 }
