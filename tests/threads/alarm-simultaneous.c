@@ -63,6 +63,7 @@ test_sleep (int thread_cnt, int iterations)
     }
   
   /* Wait long enough for all the threads to finish. */
+  
   timer_sleep (100 + iterations * 10 + 100);
 
   /* Print completion order. */
@@ -87,6 +88,7 @@ sleeper (void *test_)
   for (i = 1; i <= test->iterations; i++) 
     {
       int64_t sleep_until = test->start + i * 10;
+      
       timer_sleep (sleep_until - timer_ticks ());
       *test->output_pos++ = timer_ticks () - test->start;
       thread_yield ();
