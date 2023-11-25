@@ -92,7 +92,7 @@ void
 timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
 	if (timer_elapsed (start) < ticks) {
-		printf("(start: %d ticks: %d) \n ", start, ticks);
+		//printf("(start: %d ticks: %d) \n ", start, ticks);
 		thread_sleep(start + ticks);
 	}
 	// print_ready_list(); 

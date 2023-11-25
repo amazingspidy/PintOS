@@ -94,7 +94,7 @@ test_sleep (int thread_cnt, int iterations)
     }
   
   /* Wait long enough for all the threads to finish. */
-  printf("상단timer_sleep\n");
+  //printf("상단timer_sleep\n");
   timer_sleep (100 + thread_cnt * iterations * 10 + 100);
   print_ready_list(); 
   print_sleep_list(); 
@@ -146,7 +146,7 @@ sleeper (void *t_)
   for (i = 1; i <= test->iterations; i++) 
     {
       int64_t sleep_until = test->start + i * t->duration;
-      printf("하단timer_sleep\n");
+      //printf("하단timer_sleep\n");
       timer_sleep (sleep_until - timer_ticks ());
       
       lock_acquire (&test->output_lock);
