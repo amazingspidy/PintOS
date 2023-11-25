@@ -3,3 +3,4 @@
 *.o
 *.s
 threads/build/*
+userprog/build/*
