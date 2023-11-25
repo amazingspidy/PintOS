@@ -62,7 +62,7 @@ static void schedule (void);
 static tid_t allocate_tid (void);
 void thread_sleep(int64_t ticks);
 void thread_wakeup(int64_t ticks);
-
+void thread_switching(void);
 /* T가 유효한 스레드를 가리키는 경우 true를 반환합니다. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
 
@@ -198,7 +198,10 @@ thread_create (const char *name, int priority,
 
 	/* 실행 대기 큐에 추가. */
 	thread_unblock (t);
-
+	thread_switching();
+	// printf("cur thread -> %s\n", thread_name());
+	// print_ready_list();
+	// print_sleep_list();
 	return tid;
 }
 
@@ -231,7 +234,7 @@ bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *au
     return thread_a->priority > thread_b->priority;
 }
 
-
+//레디로 만드는 함수
 void
 thread_unblock (struct thread *t) {
 	enum intr_level old_level;
@@ -335,17 +338,37 @@ thread_wakeup(int64_t ticks) {
 	struct list_elem *e = list_begin(&sleep_list);
 	//원시적으로 wakeup 리스트를 다 순회하면서, 매 틱마다 체크해줌.
 	//여기서 개선포인트는, wakeup을 전략적으로 하는 방식을 가져가야됨.
-    for (e; e != list_end(&sleep_list); e = list_next(e)) {
+    int cnt = 0;
+	for (e; e != list_end(&sleep_list); e = list_next(e)) {
         struct thread *t = list_entry(e, struct thread, elem);
 		if (t->wake_up_time <= ticks) {
+			cnt += 1;
 			e = list_remove(e);
 			thread_unblock(t); //status를 READY로 바꾸고, ready_list에 push까지 하는함수.
-			// printf("%d tick 시점에서 %s 언블록완료 cur_thread = %s\n", ticks, t->name, thread_name());
-			// print_ready_list();
-			// print_sleep_list();
+			//thread_switching();
 			e = list_prev(e);  //이걸 해주는 이유는 list_remove(e)가 진행되면, 그 다음노드를 e로가져옴. 한칸 뒤로땡겨주기.
 		}
     }
+	// if (cnt > 0) {
+	// 	printf("Cnt: %d\n", cnt);
+	// 	thread_switching();
+	// }
+}
+
+
+void
+thread_switching(void) {
+	int now_priority = thread_get_priority();
+	struct list_elem *e = list_front(&ready_list);
+	struct thread *ready_front = list_entry(e, struct thread, elem);
+	int new_priority = ready_front -> priority;
+	
+	if ( new_priority > now_priority) {
+		//switching 진행!
+		thread_yield();
+		//printf("switching 진행!\n");
+		//printf("new_pri = %d, now_pri = %d\n", now_priority, new_priority);
+	}
 }
 
 
@@ -353,6 +376,7 @@ thread_wakeup(int64_t ticks) {
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
+	thread_switching ();
 }
 
 /* 현재 스레드의 우선순위를 반환합니다. */
@@ -631,10 +655,10 @@ void print_ready_list(void) {
                 break;  // 리스트의 끝에 도달하면 반복문 종료
             }
             struct thread *t = list_entry(e, struct thread, elem);
-            printf("Thread name: %s,  status: %d   ", t->name, t->status);
+            printf("Thread name: %s,  status: %d  Pri: %d ", t->name, t->status, t->priority);
         }
-        printf("\n");
     }
+	printf("\n");
 }
 
 
@@ -652,8 +676,8 @@ void print_sleep_list(void) {
                 break;  // 리스트의 끝에 도달하면 반복문 종료
             }
             struct thread *t = list_entry(e, struct thread, elem);
-            printf("Thread name: %s,  status: %d   ", t->name, t->status);
+            printf("Thread name: %s,  status: %d  Pri: %d ", t->name, t->status, t->priority);
         }
-        printf("\n");
     }
+	printf("\n");
 }
