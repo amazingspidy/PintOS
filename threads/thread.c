@@ -622,9 +622,6 @@ void print_ready_list(void) {
         }
         printf("\n");
     }
-	// else {
-	// 	printf("ready_list는 비어있습니다\n");
-	// }
 }
 
 
@@ -646,7 +643,4 @@ void print_sleep_list(void) {
         }
         printf("\n");
     }
-	// else {
-	// 	printf("sleep_list는 비어있습니다\n");
-	// }
 }
