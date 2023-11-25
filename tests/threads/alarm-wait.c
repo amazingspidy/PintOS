@@ -76,7 +76,7 @@ test_sleep (int thread_cnt, int iterations)
   test.iterations = iterations;
   lock_init (&test.output_lock);
   test.output_pos = output;
-
+  //printf("가장 처음의 thread = %s\n", thread_name());
   /* Start threads. */
   ASSERT (output != NULL);
   for (i = 0; i < thread_cnt; i++)
@@ -94,8 +94,10 @@ test_sleep (int thread_cnt, int iterations)
     }
   
   /* Wait long enough for all the threads to finish. */
+  printf("상단timer_sleep\n");
   timer_sleep (100 + thread_cnt * iterations * 10 + 100);
-
+  print_ready_list(); 
+  print_sleep_list(); 
   /* Acquire the output lock in case some rogue thread is still
      running. */
   lock_acquire (&test.output_lock);
@@ -144,7 +146,9 @@ sleeper (void *t_)
   for (i = 1; i <= test->iterations; i++) 
     {
       int64_t sleep_until = test->start + i * t->duration;
+      printf("하단timer_sleep\n");
       timer_sleep (sleep_until - timer_ticks ());
+      
       lock_acquire (&test->output_lock);
       *test->output_pos++ = t->id;
       lock_release (&test->output_lock);

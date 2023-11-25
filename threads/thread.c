@@ -25,7 +25,7 @@
 
 /* THREAD_READY 상태인 프로세스 목록, 즉 실행 준비가 되었으나 실제로 실행 중이지 않은 프로세스들입니다. */
 static struct list ready_list;
-
+static struct list sleep_list;
 /* 유휴 스레드. */
 static struct thread *idle_thread;
 
@@ -60,7 +60,8 @@ static void init_thread (struct thread *, const char *name, int priority);
 static void do_schedule(int status);
 static void schedule (void);
 static tid_t allocate_tid (void);
-
+void thread_sleep(int64_t ticks);
+void thread_wakeup(int64_t ticks);
 
 /* T가 유효한 스레드를 가리키는 경우 true를 반환합니다. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
@@ -101,6 +102,7 @@ void thread_init (void) {
 	/* 전역 스레드 컨텍스트를 초기화합니다. */
 	lock_init (&tid_lock);
 	list_init (&ready_list);
+	list_init (&sleep_list);
 	list_init (&destruction_req);
 
 	/* 실행 중인 스레드에 대한 스레드 구조체를 설정합니다. */
@@ -293,6 +295,47 @@ thread_yield (void) {
 	intr_set_level (old_level);
 }
 
+void set_wake_up_time(struct thread *t, int64_t ticks) {
+	t->wake_up_time = ticks;
+}
+
+void
+thread_sleep(int64_t ticks) {
+	struct thread *curr = thread_current();
+	enum intr_level old_level;
+
+	ASSERT (!intr_context ());
+
+	old_level = intr_disable ();
+
+	if (curr != idle_thread) {
+		set_wake_up_time(curr, ticks);
+		list_push_back (&sleep_list, &curr->elem);
+	}
+	
+	thread_block();  //thread_current의 status를 BLOCKED로, schedule()진행. 순서 굉장히 중요.
+	intr_set_level (old_level);
+}
+
+void
+thread_wakeup(int64_t ticks) {
+	struct list_elem *e = list_begin(&sleep_list);
+	//원시적으로 wakeup 리스트를 다 순회하면서, 매 틱마다 체크해줌.
+	//여기서 개선포인트는, wakeup을 전략적으로 하는 방식을 가져가야됨.
+    for (e; e != list_end(&sleep_list); e = list_next(e)) {
+        struct thread *t = list_entry(e, struct thread, elem);
+		if (t->wake_up_time <= ticks) {
+			e = list_remove(e);
+			thread_unblock(t); //status를 READY로 바꾸고, ready_list에 push까지 하는함수.
+			printf("%d tick 시점에서 %s 언블록완료 cur_thread = %s\n", ticks, t->name, thread_name());
+			print_ready_list();
+			print_sleep_list();
+			e = list_prev(e);  //이걸 해주는 이유는 list_remove(e)가 진행되면, 그 다음노드를 e로가져옴. 한칸 뒤로땡겨주기.
+		}
+    }
+}
+
+
 /* 현재 스레드의 우선순위를 NEW_PRIORITY로 설정합니다. */
 void
 thread_set_priority (int new_priority) {
@@ -400,6 +443,11 @@ next_thread_to_run (void) {
 	else
 		return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
+
+struct list_elem* get_list_head() {
+    return &ready_list.head;
+}
+
 
 /* iretq를 사용하여 스레드를 시작합니다. */
 void
@@ -556,4 +604,49 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+
+/* ready_list를 thread 구조체*/
+void print_ready_list(void) {
+	printf("Ready list is ");
+    if (!list_empty(&ready_list)) {
+        struct list_elem *e;
+
+        for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
+            if (e == list_tail(&ready_list)) {
+                break;  // 리스트의 끝에 도달하면 반복문 종료
+            }
+            struct thread *t = list_entry(e, struct thread, elem);
+            printf("Thread name: %s,  status: %d   ", t->name, t->status);
+        }
+        printf("\n");
+    }
+	// else {
+	// 	printf("ready_list는 비어있습니다\n");
+	// }
+}
+
+
+
+
+
+/* sleep_list를 thread 구조체*/
+void print_sleep_list(void) {
+	printf("Sleep list is ");
+    if (!list_empty(&sleep_list)) {
+        struct list_elem *e;
+
+        for (e = list_begin(&sleep_list); e != list_end(&sleep_list); e = list_next(e)) {
+            if (e == list_tail(&sleep_list)) {
+                break;  // 리스트의 끝에 도달하면 반복문 종료
+            }
+            struct thread *t = list_entry(e, struct thread, elem);
+            printf("Thread name: %s,  status: %d   ", t->name, t->status);
+        }
+        printf("\n");
+    }
+	// else {
+	// 	printf("sleep_list는 비어있습니다\n");
+	// }
 }
