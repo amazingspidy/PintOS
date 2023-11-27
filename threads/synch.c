@@ -312,7 +312,7 @@ cond_wait (struct condition *cond, struct lock *lock) {
 
 	sema_init (&waiter.semaphore, 0);
 	//list_push_back (&cond->waiters, &waiter.elem);
-	list_insert_ordered(&cond->waiters,  &waiter.elem, cmp_priority, NULL);
+	list_insert_ordered(&cond->waiters,  &waiter.elem, cmp_sem_priority, NULL);
 	lock_release (lock);
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
@@ -360,6 +360,13 @@ bool cmp_sem_priority(const struct list_elem *a,
                       void *aux ) {
     struct semaphore_elem *sema_elem_a = list_entry(a, struct semaphore_elem, elem);
     struct semaphore_elem *sema_elem_b = list_entry(b, struct semaphore_elem, elem);
+    
+   if (list_empty(&(sema_elem_a ->semaphore.waiters))) {
+      return false;
+   }
+   else if (list_empty(&(sema_elem_b ->semaphore.waiters))) {
+      return true;
+   }
 
     struct thread *thread_a = list_entry(list_front(&sema_elem_a->semaphore.waiters), struct thread, elem);
     struct thread *thread_b = list_entry(list_front(&sema_elem_b->semaphore.waiters), struct thread, elem);
