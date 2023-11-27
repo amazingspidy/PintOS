@@ -247,6 +247,10 @@ bool cmp_wake_up_time(const struct list_elem *a, const struct list_elem *b, void
     return thread_a-> wake_up_time < thread_b->wake_up_time;
 }
 
+
+
+
+
 //레디로 만드는 함수
 void
 thread_unblock (struct thread *t) {

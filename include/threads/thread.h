@@ -143,5 +143,7 @@ int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
 bool cmp_priority(const struct list_elem *, const struct list_elem *, void *);
+bool cmp_wake_up_time(const struct list_elem *, const struct list_elem *, void *);
+void thread_switching(void);
 void print_ready_list(void);
 #endif /* threads/thread.h */
