@@ -201,7 +201,7 @@ tid_t thread_create(const char *name, int priority,
 
     /* 실행 대기 큐에 추가. */
     thread_unblock(t);
-    // printf("start_thread\n");
+
     // print_ready_list();
     // print_sleep_list();
     return tid;
@@ -336,7 +336,9 @@ void thread_wakeup(int64_t ticks) {
     if (ticks < min_wake_tics)
         return;
 
+    // printf("ticks 조건 충족, wakeup\n");
     struct list_elem *e = list_begin(&sleep_list);
+    int64_t next_min_wake_ticks = INT64_MAX;
     // 원시적으로 wakeup 리스트를 다 순회하면서, 매 틱마다 체크해줌.
     // 여기서 개선포인트는, wakeup을 전략적으로 하는 방식을 가져가야됨.
     for (e; e != list_end(&sleep_list); e = list_next(e)) {
@@ -348,8 +350,13 @@ void thread_wakeup(int64_t ticks) {
             // print_ready_list();
             // print_sleep_list();
             e = list_prev(e);  // 이걸 해주는 이유는 list_remove(e)가 진행되면, 그 다음노드를 e로가져옴. 한칸 뒤로땡겨주기.
+        } else {
+            if (t->wake_up_time < next_min_wake_ticks) {
+                next_min_wake_ticks = t->wake_up_time;
+            }
         }
     }
+    min_wake_tics = next_min_wake_ticks;
 }
 
 /* 현재 스레드의 우선순위를 NEW_PRIORITY로 설정합니다. */
