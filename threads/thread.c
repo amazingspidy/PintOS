@@ -201,7 +201,9 @@ tid_t thread_create(const char *name, int priority,
 
     /* 실행 대기 큐에 추가. */
     thread_unblock(t);
-
+    // printf("start_thread\n");
+    // print_ready_list();
+    // print_sleep_list();
     return tid;
 }
 
@@ -343,8 +345,8 @@ void thread_wakeup(int64_t ticks) {
             e = list_remove(e);
             thread_unblock(t);  // status를 READY로 바꾸고, ready_list에 push까지 하는함수.
             // printf("%d tick 시점에서 %s 언블록완료 cur_thread = %s\n", ticks, t->name, thread_name());
-            print_ready_list();
-            print_sleep_list();
+            // print_ready_list();
+            // print_sleep_list();
             e = list_prev(e);  // 이걸 해주는 이유는 list_remove(e)가 진행되면, 그 다음노드를 e로가져옴. 한칸 뒤로땡겨주기.
         }
     }
@@ -611,7 +613,7 @@ allocate_tid(void) {
 
 /* ready_list를 thread 구조체*/
 void print_ready_list(void) {
-    printf("Ready list is \n");
+    printf("Ready list is ");
     if (!list_empty(&ready_list)) {
         struct list_elem *e;
 
@@ -620,7 +622,7 @@ void print_ready_list(void) {
                 break;  // 리스트의 끝에 도달하면 반복문 종료
             }
             struct thread *t = list_entry(e, struct thread, elem);
-            printf("Thread name: %s,  status: %d   ", t->name, t->status);
+            printf("Thread name: %s,  status: %d   wtime: %d", t->name, t->status, t->wake_up_time);
         }
         printf("\n");
     }
@@ -637,7 +639,7 @@ void print_sleep_list(void) {
                 break;  // 리스트의 끝에 도달하면 반복문 종료
             }
             struct thread *t = list_entry(e, struct thread, elem);
-            printf("Thread name: %s,  status: %d   ", t->name, t->status);
+            printf("Thread name: %s,  status: %d   wtime: %d", t->name, t->status, t->wake_up_time);
         }
         printf("\n");
     }

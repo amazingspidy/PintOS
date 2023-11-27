@@ -94,8 +94,8 @@ void timer_sleep(int64_t ticks) {
         // printf("(start: %d ticks: %d) \n ", start, ticks);
         thread_sleep(start + ticks);  // 호출된 시점의 시간 + sleep 상태로 있어야 하는 시간
     }
-    print_ready_list();
-    print_sleep_list();
+    // print_ready_list();
+    // print_sleep_list();
 }
 
 /* Suspends execution for approximately MS milliseconds. */
