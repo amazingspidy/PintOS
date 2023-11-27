@@ -239,6 +239,14 @@ bool cmp_priority(const struct list_elem *a, const struct list_elem *b, void *au
     return thread_a->priority > thread_b->priority;
 }
 
+
+bool cmp_wake_up_time(const struct list_elem *a, const struct list_elem *b, void *aux) {
+    struct thread *thread_a = list_entry(a, struct thread, elem);
+    struct thread *thread_b = list_entry(b, struct thread, elem);
+
+    return thread_a-> wake_up_time < thread_b->wake_up_time;
+}
+
 //레디로 만드는 함수
 void
 thread_unblock (struct thread *t) {
@@ -253,7 +261,6 @@ thread_unblock (struct thread *t) {
 	t->status = THREAD_READY;
 	
 	intr_set_level (old_level);
-	//thread_switching();
 }
 
 /* 실행 중인 스레드의 이름을 반환합니다. */
@@ -333,11 +340,12 @@ thread_sleep(int64_t ticks) {
 
 	if (curr != idle_thread) {
 		set_wake_up_time(curr, ticks);
-		list_push_back (&sleep_list, &curr->elem);
+		//list_push_back (&sleep_list, &curr->elem);
 
+		list_insert_ordered(&sleep_list, &curr-> elem, cmp_wake_up_time, NULL); //for priority...
 		if (ticks < min_wake_ticks) {
             min_wake_ticks = ticks;
-            //printf("t: %d,  mt: %d\n", ticks, min_wake_tics);
+            
         }
 	}
 	
@@ -351,29 +359,29 @@ thread_wakeup(int64_t ticks) {
 		return;
 	
 	int64_t next_min_wake_ticks = INT64_MAX;
-	struct list_elem *e = list_begin(&sleep_list);
 	
-    int cnt = 0;
-	for (e; e != list_end(&sleep_list); e = list_next(e)) {
+	struct list_elem *e = list_begin(&sleep_list);
+	for (e; e != list_end(&sleep_list);) {
         struct thread *t = list_entry(e, struct thread, elem);
 		if (t->wake_up_time <= ticks) {
-			cnt += 1;
 			e = list_remove(e);
 			thread_unblock(t); //status를 READY로 바꾸고, ready_list에 push까지 하는함수.
-			e = list_prev(e);  //이걸 해주는 이유는 list_remove(e)가 진행되면, 그 다음노드를 e로가져옴. 한칸 뒤로땡겨주기.
+			
 		}
 		else {
-			if (t->wake_up_time < next_min_wake_ticks) {
-				next_min_wake_ticks = t->wake_up_time;
-			}
+			struct list_elem *k = list_front(&sleep_list);
+			struct thread *sleep_front = list_entry(k, struct thread, elem);
+			min_wake_ticks = sleep_front -> wake_up_time;
+			break;
 		}
     }
-	min_wake_ticks = next_min_wake_ticks;
 }
 
 
 void
 thread_switching(void) {
+	if (list_empty(&ready_list))
+		return;
 	int now_priority = thread_get_priority();
 	struct list_elem *e = list_front(&ready_list);
 	struct thread *ready_front = list_entry(e, struct thread, elem);
@@ -382,8 +390,6 @@ thread_switching(void) {
 	if ( new_priority > now_priority) {
 		//switching 진행!
 		thread_yield();
-		//printf("switching 진행!\n");
-		//printf("new_pri = %d, now_pri = %d\n", now_priority, new_priority);
 	}
 }
 
