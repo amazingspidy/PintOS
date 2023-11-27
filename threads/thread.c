@@ -26,6 +26,10 @@
 /* THREAD_READY 상태인 프로세스 목록, 즉 실행 준비가 되었으나 실제로 실행 중이지 않은 프로세스들입니다. */
 static struct list ready_list;
 static struct list sleep_list;
+
+/* 다음 깨워야 할 최소 시간 */
+static int64_t min_wake_ticks;
+
 /* 유휴 스레드. */
 static struct thread *idle_thread;
 
@@ -110,6 +114,7 @@ void thread_init (void) {
 	init_thread (initial_thread, "main", PRI_DEFAULT);
 	initial_thread->status = THREAD_RUNNING;
 	initial_thread->tid = allocate_tid ();
+	min_wake_ticks = INT64_MAX;
 }
 
 /* 선점 스레드 스케줄링을 시작하고 인터럽트를 활성화합니다.
@@ -246,7 +251,9 @@ thread_unblock (struct thread *t) {
 	//list_push_back (&ready_list, &t->elem);
 	list_insert_ordered(&ready_list, & t-> elem, cmp_priority, NULL);
 	t->status = THREAD_READY;
+	
 	intr_set_level (old_level);
+	//thread_switching();
 }
 
 /* 실행 중인 스레드의 이름을 반환합니다. */
@@ -327,6 +334,11 @@ thread_sleep(int64_t ticks) {
 	if (curr != idle_thread) {
 		set_wake_up_time(curr, ticks);
 		list_push_back (&sleep_list, &curr->elem);
+
+		if (ticks < min_wake_ticks) {
+            min_wake_ticks = ticks;
+            //printf("t: %d,  mt: %d\n", ticks, min_wake_tics);
+        }
 	}
 	
 	thread_block();  //thread_current의 status를 BLOCKED로, schedule()진행. 순서 굉장히 중요.
@@ -335,9 +347,12 @@ thread_sleep(int64_t ticks) {
 
 void
 thread_wakeup(int64_t ticks) {
+	if (ticks < min_wake_ticks) 
+		return;
+	
+	int64_t next_min_wake_ticks = INT64_MAX;
 	struct list_elem *e = list_begin(&sleep_list);
-	//원시적으로 wakeup 리스트를 다 순회하면서, 매 틱마다 체크해줌.
-	//여기서 개선포인트는, wakeup을 전략적으로 하는 방식을 가져가야됨.
+	
     int cnt = 0;
 	for (e; e != list_end(&sleep_list); e = list_next(e)) {
         struct thread *t = list_entry(e, struct thread, elem);
@@ -345,14 +360,15 @@ thread_wakeup(int64_t ticks) {
 			cnt += 1;
 			e = list_remove(e);
 			thread_unblock(t); //status를 READY로 바꾸고, ready_list에 push까지 하는함수.
-			//thread_switching();
 			e = list_prev(e);  //이걸 해주는 이유는 list_remove(e)가 진행되면, 그 다음노드를 e로가져옴. 한칸 뒤로땡겨주기.
 		}
+		else {
+			if (t->wake_up_time < next_min_wake_ticks) {
+				next_min_wake_ticks = t->wake_up_time;
+			}
+		}
     }
-	// if (cnt > 0) {
-	// 	printf("Cnt: %d\n", cnt);
-	// 	thread_switching();
-	// }
+	min_wake_ticks = next_min_wake_ticks;
 }
 
 
