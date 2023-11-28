@@ -414,11 +414,15 @@ void remove_with_lock(struct lock *lock) {
     struct list *donations = &thread_current()->donation_list;
     struct thread *t;
 
-    for (e = list_begin(donations); e != list_end(donations); e = list_next(e)) {
+    if (list_begin(donations) == NULL) {
+        return;
+    }
+    for (e = list_begin(donations); e != list_end(donations);) {
         t = list_entry(e, struct thread, donation_elem);
         if (t->waiting_lock == lock) {
-            list_remove(e);
-            break;
+            e = list_remove(e);
+        } else {
+            e = list_next(e);
         }
     }
 }

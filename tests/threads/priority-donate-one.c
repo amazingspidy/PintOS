@@ -31,18 +31,18 @@ void test_priority_donate_one(void) {
     lock_init(&lock);
     lock_acquire(&lock);
 
-    printf("curr thread = %s\n", thread_name());
+    // printf("curr thread = %s\n", thread_name());
 
     thread_create("acquire1", PRI_DEFAULT + 1, acquire1_thread_func, &lock);
     // print_waiters_in_lock(&lock);
 
-    printf("curr thread = %s\n", thread_name());
+    // printf("curr thread = %s\n", thread_name());
     msg("This thread should have priority %d.  Actual priority: %d.",
         PRI_DEFAULT + 1, thread_get_priority());
     thread_create("acquire2", PRI_DEFAULT + 2, acquire2_thread_func, &lock);
     // print_waiters_in_lock(&lock);
 
-    printf("curr thread = %s\n", thread_name());
+    // printf("curr thread = %s\n", thread_name());
 
     msg("This thread should have priority %d.  Actual priority: %d.",
         PRI_DEFAULT + 2, thread_get_priority());
