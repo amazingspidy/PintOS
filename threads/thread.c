@@ -31,7 +31,7 @@ static struct list ready_list;
 static struct list sleep_list;
 
 /* 다음 깨워야 할 최소 시간 */
-static int64_t min_wake_tics;
+static int64_t min_wake_ticks;
 
 /* 유휴 스레드. */
 static struct thread *idle_thread;
@@ -116,7 +116,7 @@ void thread_init(void) {
     initial_thread->status = THREAD_RUNNING;
     initial_thread->tid = allocate_tid();
 
-    min_wake_tics = INT64_MAX;
+    min_wake_ticks = INT64_MAX;
 }
 
 /* 선점 스레드 스케줄링을 시작하고 인터럽트를 활성화합니다.
@@ -201,10 +201,24 @@ tid_t thread_create(const char *name, int priority,
 
     /* 실행 대기 큐에 추가. */
     thread_unblock(t);
+    thread_switch();
 
+    // printf("running: %s, %d    ", thread_name(), thread_current()->priority);
     // print_ready_list();
     // print_sleep_list();
     return tid;
+}
+
+/* 현재 수행중인 스레드와 가장 높은 우선순위의 스레드의 우선순위를 비교하여 스케줄링 */
+void thread_switch(void) {
+    if (!list_empty(&ready_list)) {
+        struct list_elem *e = list_begin(&sleep_list);
+        struct thread *ready_thread = list_entry(e, struct thread, elem);
+
+        if (thread_get_priority() < ready_thread->priority) {
+            thread_yield();
+        }
+    }
 }
 
 /* 현재 스레드를 대기 상태로 만듭니다. 다시 스케줄될 때까지 실행되지 않습니다.
@@ -299,9 +313,14 @@ void thread_yield(void) {
     ASSERT(!intr_context());
 
     old_level = intr_disable();
-    if (curr != idle_thread)
+    if (curr != idle_thread) {
         // list_push_back (&ready_list, &curr->elem);
         list_insert_ordered(&ready_list, &curr->elem, cmp_priority, NULL);  // for priority...
+        // printf("running: %s, %d    ", thread_name(), thread_current()->priority);
+        // print_ready_list();
+        // print_sleep_list();
+    }
+
     do_schedule(THREAD_READY);
     intr_set_level(old_level);
 }
@@ -322,9 +341,9 @@ void thread_sleep(int64_t ticks) {
         set_wake_up_time(curr, ticks);
         list_push_back(&sleep_list, &curr->elem);
 
-        if (ticks < min_wake_tics) {
-            min_wake_tics = ticks;
-            printf("t: %d,  mt: %d\n", ticks, min_wake_tics);
+        if (ticks < min_wake_ticks) {
+            min_wake_ticks = ticks;
+            // printf("t: %d,  mt: %d\n", ticks, min_wake_ticks);
         }
     }
 
@@ -333,7 +352,7 @@ void thread_sleep(int64_t ticks) {
 }
 
 void thread_wakeup(int64_t ticks) {
-    if (ticks < min_wake_tics)
+    if (ticks < min_wake_ticks)
         return;
 
     // printf("ticks 조건 충족, wakeup\n");
@@ -356,12 +375,13 @@ void thread_wakeup(int64_t ticks) {
             }
         }
     }
-    min_wake_tics = next_min_wake_ticks;
+    min_wake_ticks = next_min_wake_ticks;
 }
 
 /* 현재 스레드의 우선순위를 NEW_PRIORITY로 설정합니다. */
 void thread_set_priority(int new_priority) {
     thread_current()->priority = new_priority;
+    thread_switch();
 }
 
 /* 현재 스레드의 우선순위를 반환합니다. */
@@ -629,10 +649,10 @@ void print_ready_list(void) {
                 break;  // 리스트의 끝에 도달하면 반복문 종료
             }
             struct thread *t = list_entry(e, struct thread, elem);
-            printf("Thread name: %s,  status: %d   wtime: %d", t->name, t->status, t->wake_up_time);
+            printf("%s, %d //    ", t->name, t->priority);
         }
-        printf("\n");
     }
+    printf("\n");
 }
 
 /* sleep_list를 thread 구조체*/
@@ -646,8 +666,8 @@ void print_sleep_list(void) {
                 break;  // 리스트의 끝에 도달하면 반복문 종료
             }
             struct thread *t = list_entry(e, struct thread, elem);
-            printf("Thread name: %s,  status: %d   wtime: %d", t->name, t->status, t->wake_up_time);
+            printf("Thread name: %s,  status: %d   wtime: %d   ", t->name, t->status, t->wake_up_time);
         }
-        printf("\n");
     }
+    printf("\n");
 }

@@ -86,10 +86,12 @@ static void test_sleep(int thread_cnt, int iterations) {
     }
 
     /* Wait long enough for all the threads to finish. */
-    // printf("상단timer_sleep\n");
+    // printf("스레드 삽입 끝, 상단timer_sleep\n");
     timer_sleep(100 + thread_cnt * iterations * 10 + 100);
+    // printf("---\n");
     // print_ready_list();
     // print_sleep_list();
+    // printf("---\n");
     /* Acquire the output lock in case some rogue thread is still
        running. */
     lock_acquire(&test.output_lock);
