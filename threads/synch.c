@@ -33,6 +33,9 @@
 
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+
+void print_waiters_in_lock(struct lock *lock);
+
 bool cmp_sem_priority(const struct list_elem *,
                       const struct list_elem *,
                       void *);
@@ -202,13 +205,15 @@ void lock_acquire(struct lock *lock) {
     ASSERT(lock != NULL);
     ASSERT(!intr_context());
     ASSERT(!lock_held_by_current_thread(lock));
-    // struct thread *lock_holder = lock->holder; //현재 락 점유하는 스레드
-    // int lock_holoder_priority = lock_holder->priority;
+    // int waiters_priority = list_entry(list_begin(&lock.semaphore.waiters), struct thread, elem) -> priority;
+    enum intr_level old_level = intr_disable();
 
-    //  현재 요청하는 스레드는 어떻게알지??
+    thread_current()->waiting_lock = lock;
+    donate_priority();
 
     sema_down(&lock->semaphore);
     lock->holder = thread_current();
+    intr_set_level(old_level);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -238,6 +243,9 @@ bool lock_try_acquire(struct lock *lock) {
 void lock_release(struct lock *lock) {
     ASSERT(lock != NULL);
     ASSERT(lock_held_by_current_thread(lock));
+
+    remove_with_lock(lock);
+    refresh_priority(thread_current());
 
     lock->holder = NULL;
     sema_up(&lock->semaphore);
@@ -352,4 +360,65 @@ bool cmp_sem_priority(const struct list_elem *a,
     struct thread *thread_b = list_entry(list_front(&sema_elem_b->semaphore.waiters), struct thread, elem);
 
     return thread_a->priority > thread_b->priority;
+}
+
+void print_waiters_in_lock(struct lock *lock) {
+    struct list_elem *e;
+    struct list *waiters = &lock->semaphore.waiters;
+    struct thread *t;
+
+    printf("waiters in lock : ");
+    for (e = list_begin(waiters); e != list_end(waiters); e = list_next(e)) {
+        t = list_entry(e, struct thread, elem);
+        printf("%s(%d) ", t->name, t->priority);
+    }
+    printf("\n");
+}
+
+void refresh_priority(struct thread *t) {
+    int max_priority = t->original_priority;
+    if (!list_empty(&t->donation_list)) {
+        struct list_elem *e;
+        struct list *donations = &t->donation_list;
+        struct thread *t_donated;
+
+        for (e = list_begin(donations); e != list_end(donations); e = list_next(e)) {
+            t_donated = list_entry(e, struct thread, donation_elem);
+            if (max_priority < t_donated->priority) {
+                max_priority = t_donated->priority;
+            }
+        }
+    }
+    t->priority = max_priority;
+}
+
+void donate_priority(void) {
+    struct thread *cur = thread_current();
+    struct thread *t = cur->waiting_lock->holder;  // lock을 가지고 있는 쓰레드
+    struct lock *l = cur->waiting_lock;
+    int depth = 0;
+    while (t != NULL && depth < 8) {
+        if (t->priority < cur->priority) {
+            t->priority = cur->priority;
+            list_push_back(&t->donation_list, &cur->donation_elem);
+            // refresh_priority(t);
+        }
+        l = t->waiting_lock;
+        t = l->holder;
+        depth++;
+    }
+}
+
+void remove_with_lock(struct lock *lock) {
+    struct list_elem *e;
+    struct list *donations = &thread_current()->donation_list;
+    struct thread *t;
+
+    for (e = list_begin(donations); e != list_end(donations); e = list_next(e)) {
+        t = list_entry(e, struct thread, donation_elem);
+        if (t->waiting_lock == lock) {
+            list_remove(e);
+            break;
+        }
+    }
 }
