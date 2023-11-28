@@ -211,19 +211,33 @@ lock_init (struct lock *lock) {
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
+
 void
 lock_acquire (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
-   // struct thread *lock_holder = lock->holder; //현재 락 점유하는 스레드
-   // int lock_holoder_priority = lock_holder->priority;
+   //int waiters_priority = list_entry(list_begin(&lock.semaphore.waiters), struct thread, elem) -> priority;
    
-   //  현재 요청하는 스레드는 어떻게알지??
-
-	sema_down (&lock->semaphore);
+   sema_down (&lock->semaphore);
 	lock->holder = thread_current ();
 }
+
+void donate_priority(struct thread *t, int priority) {  // t is lock holder, priority is donor's priority
+    if (t->priority < priority) {
+        t->priority = priority;
+      //   if (t->lock_waiting != NULL) {
+      //       donate_priority(t->lock_waiting->holder, priority);
+      //   }
+      list_push_back(t->donation_list, )
+      
+    }
+}
+void
+list_push_back (struct list *list, struct list_elem *elem) {
+	list_insert (list_end (list), elem);
+}
+
 
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
@@ -377,3 +391,18 @@ bool cmp_sem_priority(const struct list_elem *a,
 
     return thread_a->priority > thread_b->priority;
 }
+
+
+void print_waiters_in_lock(struct lock *lock) {
+    struct list_elem *e;
+    struct list *waiters = &lock->semaphore.waiters;
+    struct thread *t;
+    printf("waiters in lock : ");
+    for (e = list_begin(waiters); e != list_end(waiters); e = list_next(e)) {
+        t = list_entry(e, struct thread, elem);
+        printf("%s(%d) ", t->name, t->priority);
+    }
+    printf("\n");
+}
+
+
