@@ -119,8 +119,8 @@ sema_up (struct semaphore *sema) {
 		thread_unblock (list_entry (list_pop_front (&sema->waiters),struct thread, elem));
 	
 	sema->value++;
+   list_sort(&sema->waiters, cmp_priority, NULL);
 	thread_switching();
-	//list_sort(&sema->waiters, cmp_priority, NULL);
 	intr_set_level (old_level);
 }
 
@@ -216,6 +216,10 @@ lock_acquire (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
+   // struct thread *lock_holder = lock->holder; //현재 락 점유하는 스레드
+   // int lock_holoder_priority = lock_holder->priority;
+   
+   //  현재 요청하는 스레드는 어떻게알지??
 
 	sema_down (&lock->semaphore);
 	lock->holder = thread_current ();
@@ -361,10 +365,10 @@ bool cmp_sem_priority(const struct list_elem *a,
     struct semaphore_elem *sema_elem_a = list_entry(a, struct semaphore_elem, elem);
     struct semaphore_elem *sema_elem_b = list_entry(b, struct semaphore_elem, elem);
     
-   if (list_empty(&(sema_elem_a ->semaphore.waiters))) {
+   if (list_empty(&(sema_elem_a ->semaphore.waiters))) { //a가 비어있는경우 b가 크다.
       return false;
    }
-   else if (list_empty(&(sema_elem_b ->semaphore.waiters))) {
+   else if (list_empty(&(sema_elem_b ->semaphore.waiters))) { //b가 비어있는경우 a가 크다.
       return true;
    }
 
