@@ -21,6 +21,7 @@ test_priority_sema (void)
   ASSERT (!thread_mlfqs);
 
   sema_init (&sema, 0);
+  
   thread_set_priority (PRI_MIN);
   for (i = 0; i < 10; i++) 
     {
@@ -28,11 +29,15 @@ test_priority_sema (void)
       char name[16];
       snprintf (name, sizeof name, "priority %d", priority);
       thread_create (name, priority, priority_sema_thread, NULL);
+      //print_waiters_in_sema(&sema);
+      //printf("sema value is : %d\n", sema.value);
     }
 
   for (i = 0; i < 10; i++) 
-    {
+    { 
+      
       sema_up (&sema);
+      
       msg ("Back in main thread."); 
     }
 }
@@ -40,6 +45,7 @@ test_priority_sema (void)
 static void
 priority_sema_thread (void *aux UNUSED) 
 {
+  
   sema_down (&sema);
   msg ("Thread %s woke up.", thread_name ());
 }
