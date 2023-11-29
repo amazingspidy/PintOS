@@ -109,7 +109,7 @@ void thread_init(void) {
     list_init(&ready_list);
     list_init(&sleep_list);
     list_init(&destruction_req);
-
+	
     /* 실행 중인 스레드에 대한 스레드 구조체를 설정합니다. */
     initial_thread = running_thread();
     init_thread(initial_thread, "main", PRI_DEFAULT);
@@ -395,6 +395,8 @@ void thread_switching(void) {
 /* 현재 스레드의 우선순위를 NEW_PRIORITY로 설정합니다. */
 void thread_set_priority(int new_priority) {
     thread_current()->priority = new_priority;
+    thread_current()->original_priority = new_priority;
+    refresh_priority();
     donate_priority();
     thread_switching();
 }
@@ -484,6 +486,8 @@ init_thread(struct thread *t, const char *name, int priority) {
     t->magic = THREAD_MAGIC;
     t->original_priority = priority;
     list_init(&t->donation_list);
+    t->waiting_lock = NULL;
+	//lock_init(&t->waiting_lock);
 }
 
 /* 스케줄할 다음 스레드를 선택하고 반환합니다. 실행 대기 큐에서 스레드를 반환해야 합니다.

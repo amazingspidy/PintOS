@@ -37,7 +37,10 @@ void cond_init (struct condition *);
 void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
+void print_waiters_in_lock(struct lock *);
 
+void print_waiters_in_sema(struct semaphore *);
+void donate_priority(void);
 /* Optimization barrier.
  *
  * The compiler will not reorder operations across an
