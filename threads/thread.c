@@ -394,6 +394,7 @@ void thread_switching(void) {
 
 /* 현재 스레드의 우선순위를 NEW_PRIORITY로 설정합니다. */
 void thread_set_priority(int new_priority) {
+    thread_current()->original_priority = new_priority;
     thread_current()->priority = new_priority;
     donate_priority();
     thread_switching();
