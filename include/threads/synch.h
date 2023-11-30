@@ -41,6 +41,7 @@ void print_waiters_in_lock(struct lock *);
 
 void print_waiters_in_sema(struct semaphore *);
 void donate_priority(void);
+
 /* Optimization barrier.
  *
  * The compiler will not reorder operations across an
