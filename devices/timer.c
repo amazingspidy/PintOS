@@ -91,11 +91,8 @@ timer_elapsed(int64_t then) {
 void timer_sleep(int64_t ticks) {
     int64_t start = timer_ticks();
     if (timer_elapsed(start) < ticks) {
-        // printf("(start: %d ticks: %d) \n ", start, ticks);
         thread_sleep(start + ticks);  // 호출된 시점의 시간 + sleep 상태로 있어야 하는 시간
     }
-    // print_ready_list();
-    // print_sleep_list();
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -122,7 +119,6 @@ void timer_print_stats(void) {
 static void
 timer_interrupt(struct intr_frame *args UNUSED) {
     ticks++;
-
     thread_tick();
     thread_wakeup(ticks);
 }

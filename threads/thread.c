@@ -210,7 +210,6 @@ void thread_switch(void) {
     if (!list_empty(&ready_list)) {
         struct list_elem *e = list_begin(&sleep_list);
         struct thread *ready_thread = list_entry(e, struct thread, elem);
-
         if (thread_get_priority() < ready_thread->priority) {
             thread_yield();
         }
@@ -259,7 +258,6 @@ void thread_unblock(struct thread *t) {
 
     old_level = intr_disable();
     ASSERT(t->status == THREAD_BLOCKED);
-    // list_push_back (&ready_list, &t->elem);
     list_insert_ordered(&ready_list, &t->elem, cmp_priority, NULL);
     t->status = THREAD_READY;
 
@@ -319,11 +317,7 @@ void thread_yield(void) {
 
     old_level = intr_disable();
     if (curr != idle_thread) {
-        // list_push_back (&ready_list, &curr->elem);
         list_insert_ordered(&ready_list, &curr->elem, cmp_priority, NULL);  // for priority...
-        // printf("running: %s, %d    ", thread_name(), thread_current()->priority);
-        // print_ready_list();
-        // print_sleep_list();
     }
 
     do_schedule(THREAD_READY);
@@ -344,8 +338,6 @@ void thread_sleep(int64_t ticks) {
 
     if (curr != idle_thread) {
         set_wake_up_time(curr, ticks);
-        // list_push_back (&sleep_list, &curr->elem);
-
         list_insert_ordered(&sleep_list, &curr->elem, cmp_wake_up_time, NULL);  // for priority...
         if (ticks < min_wake_ticks) {
             min_wake_ticks = ticks;
@@ -395,9 +387,9 @@ void thread_switching(void) {
 /* 현재 스레드의 우선순위를 NEW_PRIORITY로 설정합니다. */
 void thread_set_priority(int new_priority) {
     thread_current()->priority = new_priority;
-    thread_current()->original_priority = new_priority;
-    refresh_priority();
+    thread_current()->original_priority = new_priority; //간과하면 큰일난다.
     donate_priority();
+    restore_priority(); //donate_priority()와 restore_priority()순서는 중요하지 않음. 결과가 똑같음.
     thread_switching();
 }
 
@@ -673,6 +665,7 @@ void print_ready_list(void) {
             printf("Thread name: %s,  status: %d   ", t->name, t->status);
         }
     }
+    printf("\n");
 }
 
 /* sleep_list를 thread 구조체*/
@@ -689,4 +682,5 @@ void print_sleep_list(void) {
             printf("Thread name: %s,  status: %d   ", t->name, t->status);
         }
     }
+    printf("\n");
 }
