@@ -1,0 +1,75 @@
+// {
+//     "version": "2.0.0",
+//     "tasks": [
+//         {
+//             "label": "build_pintos",
+//             "type": "shell",
+//             "options": {
+//                 "cwd": "${workspaceFolder}/${input:project}"
+//             },
+//             "command": [
+//                 "make"
+//             ],
+//             "problemMatcher": []
+//         },
+//         {
+//             "label": "dbg_pintos",
+//             "type": "shell",
+//             "command": [
+//                 "${workspaceFolder}/utils/pintos"
+//             ],
+//             "args": [
+//                 "--gdb",
+//                 "--",
+//                 "-q",
+//                 "run",
+//                 "${input:test}"
+//             ],
+//             "options": {
+//                 "cwd": "${workspaceFolder}/${input:project}/build"
+//             },
+//             "dependsOn": [
+//                 "build_pintos"
+//             ],
+//             "isBackground": true,
+//             // problem matcher hack
+//             // If vscode starts supporting features in the future 
+//             // that prevent it from waiting for preLaunchTask to complete, delete this code.
+//             "problemMatcher": [
+//                 {
+//                     "pattern": [
+//                         {
+//                             "regexp": ".",
+//                             "file": 1,
+//                             "location": 2,
+//                             "message": 3
+//                         }
+//                     ],
+//                     "background": {
+//                         "activeOnStart": true,
+//                         "beginsPattern": ".",
+//                         "endsPattern": ".",
+//                     }
+//                 }
+//             ]
+//         }
+//     ],
+//     "inputs": [
+//         {
+//             "id": "test",
+//             "description": "Enter the name of the test you want to run",
+//             "type": "promptString"
+//         },
+//         {
+//             "id": "project",
+//             "description": "Enter the project to start.",
+//             "type": "pickString",
+//             "options": [
+//                 "threads",
+//                 "userprog",
+//                 "filesys",
+//                 "vm"
+//             ]
+//         }
+//     ]
+// }

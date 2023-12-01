@@ -118,9 +118,29 @@ void timer_print_stats(void) {
 /* Timer interrupt handler. */
 static void
 timer_interrupt(struct intr_frame *args UNUSED) {
+    struct thread * cur = thread_current();
     ticks++;
     thread_tick();
     thread_wakeup(ticks);
+    if (thread_mlfqs) {
+        //cur -> recent_cpu++;
+        mlfqs_increment();
+        if (timer_ticks() % TIMER_FREQ ==0) {
+            //printf("1초체크진행\n");
+            mlfqs_load_avg();
+            mlfqs_recent_cpu(cur);
+            mlfqs_priority(cur); 
+            mlfqs_recalc();
+            
+        }
+        if (timer_ticks() % 4 == 0) {
+            //printf("4틱체크진행\n");
+            mlfqs_priority(cur); 
+        }
+
+    }
+
+    
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

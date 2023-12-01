@@ -20,7 +20,7 @@ test_mlfqs_load_1 (void)
   int64_t start_time;
   int elapsed;
   int load_avg;
-  
+  int max_load_avg = -1;
   ASSERT (thread_mlfqs);
 
   msg ("spinning for up to 45 seconds, please wait...");
@@ -29,6 +29,12 @@ test_mlfqs_load_1 (void)
   for (;;) 
     {
       load_avg = thread_get_load_avg ();
+      // if (load_avg > max_load_avg) {
+      //   max_load_avg = load_avg;
+      //   printf("load_avg = %d ", load_avg);
+      // }
+      
+      
       ASSERT (load_avg >= 0);
       elapsed = timer_elapsed (start_time) / TIMER_FREQ;
       if (load_avg > 100)
