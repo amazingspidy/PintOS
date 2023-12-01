@@ -404,6 +404,7 @@ void thread_set_priority(int new_priority) {
     restore_priority(); //donate_priority()와 restore_priority()순서는 중요하지 않음. 결과가 똑같음.
     thread_switching();
     }
+    return;
 }
 
 /* 현재 스레드의 우선순위를 반환합니다. */
@@ -414,14 +415,12 @@ int thread_get_priority(void) {
 /* 현재 스레드의 nice 값을 NICE로 설정합니다. */
 void thread_set_nice(int Nice) {
     struct thread* cur = thread_current();
-    enum intr_level old_level;
-    old_level = intr_disable();
+    enum intr_level old_level = intr_disable();
     cur -> nice = Nice;
-    intr_set_level(old_level);
-
     mlfqs_priority(cur);
     thread_switching();
-    
+    intr_set_level(old_level);
+    return;
 }
 
 /* 현재 스레드의 nice 값을 반환합니다. */
@@ -450,9 +449,8 @@ int thread_get_load_avg(void) {
 int thread_get_recent_cpu(void) {
     struct thread* cur = thread_current();
     int get_recent_cpu;
-    enum intr_level old_level;
-    old_level = intr_disable();
-    get_recent_cpu = fp_to_int_round(cur->recent_cpu * 100);
+    enum intr_level old_level = intr_disable();
+    get_recent_cpu = fp_to_int_round(mult_mixed(cur->recent_cpu ,100));
     intr_set_level(old_level);
     
     return get_recent_cpu;
@@ -464,7 +462,8 @@ void mlfqs_priority (struct thread *t) {
         //t->priority = PRI_MAX - fp_to_int_round(add_mixed(div_mixed(t->recent_cpu, 4) ,(t->nice * 2)));
         
         t->priority = PRI_MAX - fp_to_int_round(div_mixed(t->recent_cpu, 4)) - (t->nice * 2);
-    }       
+    }
+    return;       
 }
 void mlfqs_recent_cpu (struct thread *t) {
     //recent_cpu = (2 * load_avg) / (2 * load_avg + 1) * recent_cpu + nice
@@ -472,9 +471,9 @@ void mlfqs_recent_cpu (struct thread *t) {
         //recent_cpu는 실수, load_avg는 정수.
         int decay_1 = mult_mixed(load_avg, 2);
         int decay = div_fp(decay_1, add_mixed(decay_1, 1));
-        int recent_cpu = mult_fp(decay, t->recent_cpu);
-        recent_cpu = add_mixed(recent_cpu, t->nice);
-        t->recent_cpu = recent_cpu;
+        int new_recent_cpu = mult_fp(decay, t->recent_cpu);
+        new_recent_cpu = add_mixed(new_recent_cpu, t->nice);
+        t->recent_cpu = new_recent_cpu;
     }
 }
 void mlfqs_load_avg (void) {
@@ -482,16 +481,16 @@ void mlfqs_load_avg (void) {
     int ready_threads;
 
     if (thread_current() != idle_thread) {
-        ready_threads = 1 + list_size(&ready_list);
+        ready_threads = 1 + (int)list_size(&ready_list);
     
     }
     else {  //애초에 idle_thread면 ready가 아무것도 없지 않을까? 틀린건 아니지만 불필요한 조건문?
-        ready_threads = list_size(&ready_list);
+        ready_threads = (int)list_size(&ready_list);
        
     }
     //load_avg -> 실수, ready_threads -> 정수
-    int coefficient1 = int_to_fp(59)/60;
-    int coefficient2 = F/60;
+    int coefficient1 = div_fp(int_to_fp(59), int_to_fp(60));
+    int coefficient2 = div_fp(F, int_to_fp(60));
     int term1 = mult_fp(coefficient1, load_avg);
     int term2 = mult_mixed(coefficient2, ready_threads);
 
@@ -504,13 +503,15 @@ void mlfqs_increment (void) {
         int recent_Cpu = add_mixed(cur->recent_cpu, 1);
         cur->recent_cpu = recent_Cpu;
     }
-
+    return;
 }
 void mlfqs_recalc (void) {
-    struct list_elem *e;
+    struct list_elem *e = list_begin(&ready_list);
     struct thread *t;
+    struct thread *cur = thread_current();
+    mlfqs_recent_cpu(cur);
     if (!list_empty(&ready_list)) {
-        for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(&ready_list)) {
+        for (e; e != list_end(&ready_list); e = list_next(&ready_list)) {
             t = list_entry(e, struct thread, elem);
             mlfqs_recent_cpu(t);
             mlfqs_priority(t);
@@ -518,7 +519,8 @@ void mlfqs_recalc (void) {
         
     }
     if (!list_empty(&sleep_list)) {
-        for (e = list_begin(&sleep_list); e != list_end(&sleep_list); e = list_next(&sleep_list)) {
+        e = list_begin(&sleep_list);
+        for (e; e != list_end(&sleep_list); e = list_next(&sleep_list)) {
                 t = list_entry(e, struct thread, elem);
                 mlfqs_recent_cpu(t);
                 mlfqs_priority(t);        
