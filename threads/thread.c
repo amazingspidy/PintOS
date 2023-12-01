@@ -415,7 +415,7 @@ void thread_set_nice(int nice1) {
     enum intr_level old_level = intr_disable();
     curr->nice = nice1;
 
-    mlfqs_priority(curr);
+    calculate_priority_mlfqs(curr, NULL);
     thread_switching();
     intr_set_level(old_level);
 }
@@ -447,14 +447,14 @@ int thread_get_recent_cpu(void) {
     return recent_cpu_100;
 }
 
-void mlfqs_priority(struct thread *t) {
+void calculate_priority_mlfqs(struct thread *t, void *aux UNUSED) {
     if (t == idle_thread)
         return;
     int new_priority = PRI_MAX - fp_to_int_round(div_mixed(t->recent_cpu, 4)) - t->nice * 2;
     t->priority = new_priority;
 }
 
-void mlfqs_recent_cpu(struct thread *t) {
+void calculate_recent_cpu(struct thread *t) {
     if (t == idle_thread)
         return;
     // int new_recent_cpu = div_fp(mult_fp(load_avg, 2), mult_fp(load_avg, 2) + int_to_fp(1));
@@ -466,7 +466,7 @@ void mlfqs_recent_cpu(struct thread *t) {
     t->recent_cpu = new_recent_cpu;
 }
 
-void mlfqs_load_avg(void) {
+void calculate_load_avg(void) {
     int ready_threads = (int)list_size(&ready_list);
     if (thread_current() != idle_thread)
         ready_threads++;
@@ -478,29 +478,29 @@ void mlfqs_load_avg(void) {
     load_avg = add_fp(load_avg_1, load_avg_2);
 }
 
-void mlfqs_increment(void) {
+void increase_recent_cpu(void) {
     struct thread *curr = thread_current();
     if (curr == idle_thread)
         return;
     curr->recent_cpu = add_mixed(curr->recent_cpu, 1);
 }
 
-void mlfqs_recalc(void) {
+void recalculate_all(void) {
     struct thread *curr = thread_current();
     struct list_elem *e = list_begin(&ready_list);
 
-    mlfqs_recent_cpu(curr);
+    calculate_recent_cpu(curr);
     for (e; e != list_end(&ready_list); e = list_next(e)) {
         struct thread *t = list_entry(e, struct thread, elem);
-        mlfqs_recent_cpu(t);
-        mlfqs_priority(t);
+        calculate_recent_cpu(t);
+        calculate_priority_mlfqs(t, NULL);
     }
 
     e = list_begin(&sleep_list);
     for (e; e != list_end(&sleep_list); e = list_next(e)) {
         struct thread *t = list_entry(e, struct thread, elem);
-        mlfqs_recent_cpu(t);
-        mlfqs_priority(t);
+        calculate_recent_cpu(t);
+        calculate_priority_mlfqs(t, NULL);
     }
 }
 
