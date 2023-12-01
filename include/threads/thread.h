@@ -98,6 +98,8 @@ struct thread {
     struct list donation_list; /* List of threads that donated priority to this thread. */
     struct list_elem donation_elem;
     int original_priority; /* Original priority of the thread. */
+    int nice;              /* Nice value of the thread. */
+    int recent_cpu;        /* Recent cpu value of the thread. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -153,4 +155,9 @@ void print_ready_list(void);
 void print_sleep_list(void);
 void donate_priority(void);
 
+void calculate_load_avg(void);
+void calculate_recent_cpu(struct thread *t);
+void increase_recent_cpu(void);
+void calculate_priority_mlfqs(struct thread *t, void *aux UNUSED);
+void recalculate_all(void);
 #endif /* threads/thread.h */
