@@ -1,6 +1,9 @@
 {
     "files.associations": {
         "*.inc": "c",
-        "thread.h": "c"
+        "thread.h": "c",
+        "inttypes.h": "c",
+        "fixed_point.h": "c",
+        "stdint.h": "c"
     }
 }
