@@ -410,14 +410,14 @@ int thread_get_priority(void) {
 }
 
 /* 현재 스레드의 nice 값을 NICE로 설정합니다. */
-void thread_set_nice(int nice UNUSED) {
+void thread_set_nice(int nice1) {
     struct thread *curr = thread_current();
     enum intr_level old_level = intr_disable();
-    curr->nice = nice;
-    intr_set_level(old_level);
+    curr->nice = nice1;
 
     calculate_priority_mlfqs(curr, NULL);
     thread_switching();
+    intr_set_level(old_level);
 }
 
 /* 현재 스레드의 nice 값을 반환합니다. */
@@ -441,6 +441,7 @@ int thread_get_load_avg(void) {
 int thread_get_recent_cpu(void) {
     struct thread *curr = thread_current();
     enum intr_level old_level = intr_disable();
+    // int recent_cpu_100 = fp_to_int_round(mult_fp(curr->recent_cpu, 100));
     int recent_cpu_100 = fp_to_int_round(mult_mixed(curr->recent_cpu, 100));
     intr_set_level(old_level);
     return recent_cpu_100;
@@ -456,21 +457,25 @@ void calculate_priority_mlfqs(struct thread *t, void *aux UNUSED) {
 void calculate_recent_cpu(struct thread *t) {
     if (t == idle_thread)
         return;
+    // int new_recent_cpu = div_fp(mult_fp(load_avg, 2), mult_fp(load_avg, 2) + int_to_fp(1));
     int new_recent_cpu = div_fp(mult_mixed(load_avg, 2), add_mixed(mult_mixed(load_avg, 2), 1));
     new_recent_cpu = mult_fp(new_recent_cpu, t->recent_cpu);
+    // new_recent_cpu = new_recent_cpu + int_to_fp(t->nice);
     new_recent_cpu = add_mixed(new_recent_cpu, t->nice);
 
     t->recent_cpu = new_recent_cpu;
 }
 
 void calculate_load_avg(void) {
-    int ready_threads = list_size(&ready_list);
+    int ready_threads = (int)list_size(&ready_list);
     if (thread_current() != idle_thread)
         ready_threads++;
-    int load_avg_1 = mult_fp(div_fp(59, 60), load_avg);
-    int load_avg_2 = mult_mixed(div_fp(1, 60), ready_threads);
+    // int load_avg_1 = mult_fp(int_to_fp(59) / 60, load_avg);
+    int load_avg_1 = mult_fp(div_fp(int_to_fp(59), int_to_fp(60)), load_avg);
+    // int load_avg_2 = mult_fp(int_to_fp(1) / 60, int_to_fp(ready_threads));
+    int load_avg_2 = mult_mixed(div_fp(int_to_fp(1), int_to_fp(60)), ready_threads);
 
-    load_avg = load_avg_1 + load_avg_2;
+    load_avg = add_fp(load_avg_1, load_avg_2);
 }
 
 void increase_recent_cpu(void) {
@@ -484,7 +489,7 @@ void recalculate_all(void) {
     struct thread *curr = thread_current();
     struct list_elem *e = list_begin(&ready_list);
 
-    // calculate_recent_cpu(curr);
+    calculate_recent_cpu(curr);
     for (e; e != list_end(&ready_list); e = list_next(e)) {
         struct thread *t = list_entry(e, struct thread, elem);
         calculate_recent_cpu(t);

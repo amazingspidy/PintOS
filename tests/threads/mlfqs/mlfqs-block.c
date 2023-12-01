@@ -57,7 +57,6 @@ block_thread(void *lock_) {
 
     msg("Block thread acquiring lock...");
     lock_acquire(lock);
-    printf("11");
 
     msg("...got it.");
 }
