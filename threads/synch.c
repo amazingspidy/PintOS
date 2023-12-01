@@ -186,15 +186,8 @@ void lock_acquire(struct lock *lock) {
     ASSERT(!intr_context());
     ASSERT(!lock_held_by_current_thread(lock));
     
-<<<<<<< HEAD
     if (!thread_mlfqs) {
         thread_current()->waiting_lock = lock;  //1.lock요구자자의  waiting_lock갱신
-=======
-    
-    
-    if (!thread_mlfqs) {
-        thread_current()->waiting_lock = lock;  //1.lock요구자의  waiting_lock갱신
->>>>>>> 9e75962891ced912555253a80a14667e4a903287
         donate_priority();
     }
     sema_down(&lock->semaphore);
@@ -229,18 +222,10 @@ bool lock_try_acquire(struct lock *lock) {
 void lock_release(struct lock *lock) {
     ASSERT(lock != NULL);
     ASSERT(lock_held_by_current_thread(lock));
-<<<<<<< HEAD
-=======
-
->>>>>>> 9e75962891ced912555253a80a14667e4a903287
     if (!thread_mlfqs) {
         remove_donors_with_lock(lock);
         restore_priority();
     }
-<<<<<<< HEAD
-=======
-    
->>>>>>> 9e75962891ced912555253a80a14667e4a903287
     lock->holder = NULL;
     sema_up(&lock->semaphore);
 }
