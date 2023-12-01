@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "*.inc": "c",
-        "thread.h": "c"
+        "thread.h": "c",
+        "interrupt.h": "c"
     }
 }
