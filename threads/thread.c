@@ -428,8 +428,7 @@ void thread_set_nice(int Nice) {
 int thread_get_nice(void) {
     struct thread* cur = thread_current();
     int get_nice;
-    enum intr_level old_level;
-    old_level = intr_disable();
+    enum intr_level old_level = intr_disable();
     get_nice = cur->nice;
     intr_set_level(old_level);
     return get_nice;
@@ -438,8 +437,7 @@ int thread_get_nice(void) {
 //* 시스템 평균 부하의 100배를 반환합니다. */
 int thread_get_load_avg(void) {
     int get_load_avg;
-    enum intr_level old_level;
-    old_level = intr_disable();
+    enum intr_level old_level = intr_disable();
     get_load_avg = fp_to_int_round(load_avg * 100);  //반올림하여 나타내야함.
     intr_set_level(old_level);
     return get_load_avg;
@@ -450,8 +448,7 @@ int thread_get_load_avg(void) {
 int thread_get_recent_cpu(void) {
     struct thread* cur = thread_current();
     int get_recent_cpu;
-    enum intr_level old_level;
-    old_level = intr_disable();
+    enum intr_level old_level = intr_disable();
     get_recent_cpu = fp_to_int_round(cur->recent_cpu * 100);
     intr_set_level(old_level);
     
@@ -459,71 +456,90 @@ int thread_get_recent_cpu(void) {
 }
 void mlfqs_priority (struct thread *t) {
     //priority = PRI_MAX – (recent_cpu / 4) – (nice * 2)
-    if (t != idle_thread) {
+    if (t == idle_thread)
+        return;
+    
         // recent_cpu는 실수,  nice는 그냥 정수라서 함수로 계산 필요 x
         //t->priority = PRI_MAX - fp_to_int_round(add_mixed(div_mixed(t->recent_cpu, 4) ,(t->nice * 2)));
-        
-        t->priority = PRI_MAX - fp_to_int_round(div_mixed(t->recent_cpu, 4)) - (t->nice * 2);
-    }       
+    int new_priority = PRI_MAX - fp_to_int_round(div_mixed(t->recent_cpu, 4)) - t->nice * 2;    
+    t->priority = new_priority;
+          
 }
 void mlfqs_recent_cpu (struct thread *t) {
     //recent_cpu = (2 * load_avg) / (2 * load_avg + 1) * recent_cpu + nice
-    if (t != idle_thread) {
+    if (t == idle_thread)
+        return;
+    
         //recent_cpu는 실수, load_avg는 정수.
-        int decay_1 = mult_mixed(load_avg, 2);
-        int decay = div_fp(decay_1, add_mixed(decay_1, 1));
-        int recent_cpu = mult_fp(decay, t->recent_cpu);
-        recent_cpu = add_mixed(recent_cpu, t->nice);
-        t->recent_cpu = recent_cpu;
-    }
+    // int decay_1 = mult_mixed(load_avg, 2);
+    // int decay = div_fp(decay_1, add_mixed(decay_1, 1));
+    // int recent_cpu = mult_fp(decay, t->recent_cpu);
+    // recent_cpu = add_mixed(recent_cpu, t->nice);
+
+    int new_recent_cpu = div_fp(mult_mixed(load_avg, 2), add_mixed(mult_mixed(load_avg, 2), 1));
+    new_recent_cpu = mult_fp(new_recent_cpu, t->recent_cpu);
+    new_recent_cpu = add_mixed(new_recent_cpu, t->nice);
+    t->recent_cpu = new_recent_cpu;
+    
 }
 void mlfqs_load_avg (void) {
     //load_avg = (59/60) * load_avg + (1/60) * ready_threads
-    int ready_threads;
+    // int ready_threads;
 
-    if (thread_current() != idle_thread) {
-        ready_threads = 1 + list_size(&ready_list);
+    // if (thread_current() != idle_thread) {
+    //     ready_threads = 1 + list_size(&ready_list);
     
-    }
-    else {  //애초에 idle_thread면 ready가 아무것도 없지 않을까? 틀린건 아니지만 불필요한 조건문?
-        ready_threads = list_size(&ready_list);
+    // }
+    // else {  //애초에 idle_thread면 ready가 아무것도 없지 않을까? 틀린건 아니지만 불필요한 조건문?
+    //     ready_threads = list_size(&ready_list);
        
-    }
-    //load_avg -> 실수, ready_threads -> 정수
-    int coefficient1 = int_to_fp(59)/60;
-    int coefficient2 = F/60;
-    int term1 = mult_fp(coefficient1, load_avg);
-    int term2 = mult_mixed(coefficient2, ready_threads);
+    // }
+    // //load_avg -> 실수, ready_threads -> 정수
+    // int coefficient1 = int_to_fp(59)/60;
+    // int coefficient2 = F/60;
+    // int term1 = mult_fp(coefficient1, load_avg);
+    // int term2 = mult_mixed(coefficient2, ready_threads);
 
-    load_avg = add_fp(term1, term2);
+    // load_avg = add_fp(term1, term2);
+
+    int ready_threads = list_size(&ready_list);
+    if (thread_current() != idle_thread)
+        ready_threads++;
+    int load_avg_1 = mult_fp(div_fp(59, 60), load_avg);
+    int load_avg_2 = mult_mixed(div_fp(1, 60), ready_threads);
+
+    load_avg = load_avg_1 + load_avg_2;
     
 }
 void mlfqs_increment (void) {
     struct thread * cur = thread_current();
-    if (cur != idle_thread) {
-        int recent_Cpu = add_mixed(cur->recent_cpu, 1);
-        cur->recent_cpu = recent_Cpu;
-    }
+    if (cur == idle_thread)
+        return;
+    
+    int recent_Cpu = add_mixed(cur->recent_cpu, 1);
+    cur->recent_cpu = recent_Cpu;
+    
 
 }
 void mlfqs_recalc (void) {
-    struct list_elem *e;
+    struct list_elem *e = list_begin(&ready_list);
     struct thread *t;
-    if (!list_empty(&ready_list)) {
-        for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(&ready_list)) {
+    
+    for (e; e != list_end(&ready_list); e = list_next(&ready_list)) {
+        t = list_entry(e, struct thread, elem);
+        mlfqs_recent_cpu(t);
+        mlfqs_priority(t);
+    }
+        
+    
+    e = list_begin(&sleep_list);
+    
+    for (e; e != list_end(&sleep_list); e = list_next(&sleep_list)) {
             t = list_entry(e, struct thread, elem);
             mlfqs_recent_cpu(t);
-            mlfqs_priority(t);
-        }
-        
-    }
-    if (!list_empty(&sleep_list)) {
-        for (e = list_begin(&sleep_list); e != list_end(&sleep_list); e = list_next(&sleep_list)) {
-                t = list_entry(e, struct thread, elem);
-                mlfqs_recent_cpu(t);
-                mlfqs_priority(t);        
-        } 
-    }
+            mlfqs_priority(t);        
+    } 
+    
 }
 
 
