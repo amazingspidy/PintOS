@@ -128,6 +128,11 @@ timer_interrupt(struct intr_frame *args UNUSED) {
         if (timer_ticks() % TIMER_FREQ ==0) {
             //printf("1초체크진행\n");
             mlfqs_load_avg();
+<<<<<<< HEAD
+=======
+            // mlfqs_recent_cpu(cur);
+            // mlfqs_priority(cur); 
+>>>>>>> 2fa1d1410772cbc4d0e71028f949f3310673d762
             mlfqs_recalc();
             
         }
