@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "threads/interrupt.h"
+
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -98,8 +99,13 @@ struct thread {
     struct list donation_list; /* List of threads that donated priority to this thread. */
     struct list_elem donation_elem;
     int original_priority; /* Original priority of the thread. */
+<<<<<<< HEAD
     int recent_cpu;
     int nice;
+=======
+    int nice;
+    int recent_cpu;
+>>>>>>> 9e75962891ced912555253a80a14667e4a903287
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint64_t *pml4; /* Page map level 4 */
@@ -143,8 +149,17 @@ void thread_set_priority(int);
 
 int thread_get_nice(void);
 void thread_set_nice(int);
-int thread_get_recent_cpu(void);
 int thread_get_load_avg(void);
+int thread_get_recent_cpu(void);
+void mlfqs_priority (struct thread *);
+void mlfqs_recent_cpu (struct thread *);
+void mlfqs_load_avg (void);
+void mlfqs_increment (void);
+void mlfqs_recalc (void);
+
+
+
+
 
 void mlfqs_priority(struct thread *);
 void mlfqs_recent_cpu(struct thread *);
