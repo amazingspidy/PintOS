@@ -99,9 +99,8 @@ struct thread {
     struct list donation_list; /* List of threads that donated priority to this thread. */
     struct list_elem donation_elem;
     int original_priority; /* Original priority of the thread. */
-    int nice;              /* Nice value of the thread. */
-    int recent_cpu;        /* Recent cpu value of the thread. */
-
+    int recent_cpu;
+    int nice;
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint64_t *pml4; /* Page map level 4 */
@@ -152,6 +151,16 @@ void mlfqs_recent_cpu (struct thread *);
 void mlfqs_load_avg (void);
 void mlfqs_increment (void);
 void mlfqs_recalc (void);
+
+
+
+
+
+void mlfqs_priority(struct thread *);
+void mlfqs_recent_cpu(struct thread *);
+void mlfqs_load_avg(void);
+void mlfqs_increment(void);
+void mlfqs_recalc(void);
 
 void do_iret(struct intr_frame *tf);
 bool cmp_priority(const struct list_elem *, const struct list_elem *, void *);
