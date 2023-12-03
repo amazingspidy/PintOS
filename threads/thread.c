@@ -142,7 +142,7 @@ void thread_start(void) {
     struct semaphore idle_started;
     sema_init(&idle_started, 0);
     thread_create("idle", PRI_MIN, idle, &idle_started);
-    load_avg = 0;
+    load_avg = LOAD_AVG_DEFAULT;
     /* 선점 스레드 스케줄링을 시작합니다. */
     intr_enable();
 
@@ -410,7 +410,6 @@ void thread_set_priority(int new_priority) {
     donate_priority();
     restore_priority(); //donate_priority()와 restore_priority()순서는 중요하지 않음. 결과가 똑같음.
     thread_switching();
-   
 }
 
 /* 현재 스레드의 우선순위를 반환합니다. */
@@ -426,7 +425,6 @@ void thread_set_nice(int nice UNUSED) {
     mlfqs_priority(cur);
     thread_switching();
     intr_set_level(old_level);
-
 }
 
 /* 현재 스레드의 nice 값을 반환합니다. */
@@ -443,7 +441,7 @@ int thread_get_nice(void) {
 int thread_get_load_avg(void) {
     int get_load_avg;
     enum intr_level old_level = intr_disable();
-    get_load_avg = fp_to_int_round(load_avg * 100);  //반올림하여 나타내야함.
+    get_load_avg = fp_to_int_round(mult_mixed(load_avg, 100));  //반올림하여 나타내야함.
     intr_set_level(old_level);
     return get_load_avg;
 }
@@ -460,6 +458,7 @@ int thread_get_recent_cpu(void) {
     return get_recent_cpu;
 }
 
+//priority를 재계산산
 void mlfqs_priority (struct thread *t) {
     //priority = PRI_MAX – (recent_cpu / 4) – (nice * 2)
     if (t == idle_thread)
@@ -472,12 +471,13 @@ void mlfqs_priority (struct thread *t) {
     }
 
 
+//recent_cpu를 재계산
 void mlfqs_recent_cpu (struct thread *t) {
     //recent_cpu = (2 * load_avg) / (2 * load_avg + 1) * recent_cpu + nice
     if (t == idle_thread)
         return;
     
-    //recent_cpu는 실수, load_avg는 정수.
+    //recent_cpu는 실수, load_avg는 실수.
     int decay_1 = mult_mixed(load_avg, 2);
     int decay = div_fp(decay_1, add_mixed(decay_1, 1));
     int new_recent_cpu = mult_fp(decay, t->recent_cpu);
@@ -485,17 +485,16 @@ void mlfqs_recent_cpu (struct thread *t) {
     t->recent_cpu = new_recent_cpu;
 }
 
+//load_avg를 재계산
 void mlfqs_load_avg (void) {
     //load_avg = (59/60) * load_avg + (1/60) * ready_threads
     int ready_threads;
 
     if (thread_current() != idle_thread) {
         ready_threads = 1 + (int)list_size(&ready_list);
-    
     }
-    else {  //애초에 idle_thread면 ready가 아무것도 없지 않을까? 틀린건 아니지만 불필요한 조건문?
+    else {  //실은 idle_thread면 ready_list에 아무것도 없다. 
         ready_threads = (int)list_size(&ready_list);
-       
     }
     //load_avg -> 실수, ready_threads -> 정수
     int coefficient1 = div_fp(int_to_fp(59), int_to_fp(60));
@@ -507,6 +506,7 @@ void mlfqs_load_avg (void) {
     
 }
 
+// 현재 스레드의 recent_cpu를 증가시킴.
 void mlfqs_increment (void) {
     struct thread * cur = thread_current();
     if (cur != idle_thread) {
@@ -516,12 +516,13 @@ void mlfqs_increment (void) {
     return;
 }
 
-
+//모든 스레드의 recent_cpu와, 현재스레드 제외한 나머지 priority를 재계산.
+//여기서 현재 스레드의 priority 계산은 빠짐. 어차피 4틱마다 timer interrupt기에서 진행됨.
 void mlfqs_recalc (void) {
     struct list_elem *e = list_begin(&ready_list);
     struct thread *t;
     struct thread *cur = thread_current();
-    mlfqs_recent_cpu(cur);
+    mlfqs_recent_cpu(cur); 
     if (!list_empty(&ready_list)) {
         for (e; e != list_end(&ready_list); e = list_next(e)) {
             t = list_entry(e, struct thread, elem);
@@ -601,8 +602,8 @@ init_thread(struct thread *t, const char *name, int priority) {
     t->original_priority = priority;
     list_init(&t->donation_list);
     t->waiting_lock = NULL;
-	t->nice = 0;
-    t->recent_cpu = 0;
+	t->nice = NICE_DEFAULT;
+    t->recent_cpu = RECENT_CPU_DEFAULT;
 }
 
 /* 스케줄할 다음 스레드를 선택하고 반환합니다. 실행 대기 큐에서 스레드를 반환해야 합니다.
