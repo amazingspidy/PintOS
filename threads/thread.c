@@ -454,7 +454,7 @@ int thread_get_recent_cpu(void) {
     enum intr_level old_level = intr_disable();
     get_recent_cpu = fp_to_int_round(mult_mixed(cur->recent_cpu ,100));
     intr_set_level(old_level);
-    
+    //test
     return get_recent_cpu;
 }
 
