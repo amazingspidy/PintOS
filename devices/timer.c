@@ -118,36 +118,23 @@ void timer_print_stats(void) {
 /* Timer interrupt handler. */
 static void
 timer_interrupt(struct intr_frame *args UNUSED) {
+    struct thread * cur = thread_current();
     ticks++;
     thread_tick();
     thread_wakeup(ticks);
 
     if (thread_mlfqs) {
-        increase_recent_cpu();
+        mlfqs_increment();
 
         // 1초 마다
         if (timer_ticks() % TIMER_FREQ == 0) {
-            calculate_load_avg();
-            // calculate_recent_cpu();
-            // calculate_priority_mlfqs(thread_current(), NULL);
-            recalculate_all();
+            mlfqs_load_avg();
+            mlfqs_recalc();
         }
         // 4 tick 마다
         if (timer_ticks() % 4 == 0) {
-            // calculate_recent_cpu();
-            // if (ticks < 5000)
-            // printf("ticks: %d, recent_cpu is %d.%02d, load_avg is %d.%02d.\n",
-            //    ticks, thread_get_recent_cpu() / 100, thread_get_recent_cpu() % 100,
-            //    thread_get_load_avg() / 100, thread_get_load_avg() % 100);
-            calculate_priority_mlfqs(thread_current(), NULL);
-        }
-
-        // if (ticks % TIMER_FREQ == 0) {
-        //     calculate_load_avg();
-        //     recalculate_all();
-        // } else if (ticks % 4 == 0) {
-        //     increase_recent_cpu();
-        // }
+           mlfqs_priority(thread_current());
+        }   
     }
 }
 
