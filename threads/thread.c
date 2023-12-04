@@ -769,3 +769,6 @@ void print_sleep_list(void) {
     }
     printf("\n");
 }
+
+
+/*프로젝트 2 전 클론 후 깃 테스트 */
