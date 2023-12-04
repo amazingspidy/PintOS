@@ -333,7 +333,7 @@ void thread_yield(void) {
     ASSERT(!intr_context());
 
     old_level = intr_disable();
-    if (curr != idle_thread) {
+    if (curr != idle_thread) { // 이부분이 mlfqs에서 지대한영향.
         list_insert_ordered(&ready_list, &curr->elem, cmp_priority, NULL);  // for priority...
     }
 
