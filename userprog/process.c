@@ -50,8 +50,13 @@ process_create_initd (const char *file_name) {
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
 
+	char *arg1;
+	char *next_ptr;
+	arg1 = strtok_r(fn_copy, " ", &next_ptr);
+
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+	//첫번째 인자를 thread_create에 넘기기.
+	tid = thread_create (arg1, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -164,7 +169,7 @@ int
 process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
-
+	
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
 	 * it stores the execution information to the member. */
@@ -176,19 +181,44 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup ();
 
-	/* And then load the binary */
-	success = load (file_name, &_if);
 
+	//argument-parsing
+	char *args_list[100];
+	char *arg;
+	char *rest;
+	strlcpy(rest, file_name, PGSIZE);
+	int count = 0;  //토큰 개수
+	
+	while ((arg = strtok_r(file_name, " ", &rest))) {
+		args_list[count++] = arg;
+	}
+
+
+	/* And then load the binary */
+	success = load (args_list[0], &_if);
+	
+	argument_stack(args_list, count, &_if.rsp);
+
+	hex_dump(_if.rsp, _if.rsp, LOADER_PHYS_BASE - _if.rsp, true);
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
 	if (!success)
 		return -1;
-
+	
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
 }
 
+void argument_stack(char **parse, int count, void **esp) {
+	int i, j;
+	for (i = count - 1; i > -1; i--) {
+		for (j = strlen(parse[i]); j > -1; j--) {
+			*esp = *esp - -1;
+			**(char **)esp = parse[i][j];
+		}
+	}
+}
 
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
