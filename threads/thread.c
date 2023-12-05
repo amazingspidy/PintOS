@@ -206,7 +206,7 @@ tid_t thread_create(const char *name, int priority,
     /* 실행 대기 큐에 추가. */
     thread_unblock(t);
     thread_switching();
-
+    //printf("thread_name is = %s\n", name);
     return tid;
 }
 
@@ -769,3 +769,6 @@ void print_sleep_list(void) {
     }
     printf("\n");
 }
+
+
+/*프로젝트 2 전 클론 후 깃 테스트 */
