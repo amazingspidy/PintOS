@@ -6,20 +6,15 @@
 #include "threads/vaddr.h"
 #include "intrinsic.h"
 
-/* The Global Descriptor Table (GDT).
+/* Global Descriptor Table (GDT) 정의.
  *
- * The GDT, an x86-64 specific structure, defines segments that can
- * potentially be used by all processes in a system, subject to
- * their permissions.  There is also a per-process Local
- * Descriptor Table (LDT) but that is not used by modern
- * operating systems.
+ * GDT는 x86-64 특정 구조로, 시스템 내의 모든 프로세스가 사용할 수 있는 세그먼트를 정의합니다.
+ * 권한에 따라 다르게 적용됩니다. 현대의 운영 시스템에서는 Local Descriptor Table (LDT)는 사용되지 않습니다.
  *
- * Each entry in the GDT, which is known by its byte offset in
- * the table, identifies a segment.  For our purposes only three
- * types of segments are of interest: code, data, and TSS or
- * Task-State Segment descriptors.  The former two types are
- * exactly what they sound like.  The TSS is used primarily for
- * stack switching on interrupts. */
+ * GDT의 각 항목은 테이블 내의 바이트 오프셋으로 알려져 있으며, 세그먼트를 식별합니다.
+ * 우리의 목적을 위해서는 세 가지 타입의 세그먼트가 관심사입니다: 코드, 데이터, 그리고 TSS 또는 Task-State Segment 디스크립터.
+ * 전자 두 타입은 그들이 나타내는 것과 정확히 같습니다. TSS는 주로 인터럽트에서 스택 전환을 위해 사용됩니다. */
+
 
 struct segment_desc {
 	unsigned lim_15_0 : 16;
@@ -77,8 +72,7 @@ struct desc_ptr gdt_ds = {
 	.address = (uint64_t) gdt
 };
 
-/* Sets up a proper GDT.  The bootstrap loader's GDT didn't
-   include user-mode selectors or a TSS, but we need both now. */
+/* 적절한 GDT를 설정합니다. 부트스트랩 로더의 GDT는 사용자 모드 선택자나 TSS를 포함하지 않았지만, 이제는 둘 다 필요합니다. */
 void
 gdt_init (void) {
 	/* Initialize GDT. */
