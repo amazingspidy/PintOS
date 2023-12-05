@@ -26,6 +26,7 @@ static void process_cleanup (void);
 static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
+static void argument_stack(char **parse, int count, void **esp);
 
 /* 일반 프로세스 초기화기(initd 및 기타 프로세스를 위한). */
 static void
@@ -173,6 +174,8 @@ process_exec (void *f_name) {
 
 	/* 그리고 바이너리를 로드합니다. */
 	success = load (file_name, &_if);
+	hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+
 
 	/* 로드에 실패하면 종료합니다. */
 	palloc_free_page (file_name);
@@ -193,9 +196,16 @@ process_exec (void *f_name) {
  * 이 함수는 문제 2-2에서 구현될 것입니다. 지금은 아무 것도 하지 않습니다. */
 int
 process_wait (tid_t child_tid UNUSED) {
+
+	int i = 0;
+	while( i < 1000 );
+	{
+		i++;
+	}
 	/* XXX: 힌트) Pintos가 process_wait(initd)일 때 종료하는 경우, 여기에
 	 * XXX:       무한 루프를 추가하는 것이 좋습니다.
 	 * XXX:       process_wait을 구현하기 전까지는. */
+
 	return -1;
 }
 
@@ -308,6 +318,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
  * 실행 파일의 진입점을 *RIP에 저장하고
  * 초기 스택 포인터를 *RSP에 저장합니다.
  * 성공하면 true를 반환하고, 그렇지 않으면 false를 반환합니다. */
+#define MAX_ARGS 128
 static bool
 load (const char *file_name, struct intr_frame *if_) {
 	struct thread *t = thread_current ();
@@ -316,6 +327,23 @@ load (const char *file_name, struct intr_frame *if_) {
 	off_t file_ofs;
 	bool success = false;
 	int i;
+
+	char *parse[MAX_ARGS];
+    int count = 0;
+    char *token, *save_ptr;
+
+	// 파일 이름 복사 (strtok_r은 원본 문자열을 변경하기 때문에)
+    char *fn_copy = malloc(strlen(file_name) + 1);
+    strlcpy(fn_copy, file_name, strlen(file_name) + 1);
+
+	// 명령줄 인자 분석
+    for (token = strtok_r(fn_copy, " ", &save_ptr); token != NULL;
+         token = strtok_r(NULL, " ", &save_ptr)) {
+        if (count >= MAX_ARGS - 1)
+            break;
+        parse[count++] = token;
+    }
+    parse[count] = NULL;  // NULL-terminated array
 
     /* 페이지 디렉토리 할당 및 활성화 */
 	t->pml4 = pml4_create ();
@@ -399,17 +427,21 @@ load (const char *file_name, struct intr_frame *if_) {
 	if (!setup_stack (if_))
 		goto done;
 
-    /* 시작 주소 설정 */
+   	/* 시작 주소 설정 */
 	if_->rip = ehdr.e_entry;
 
     /* TODO: 여기에 코드 추가.
      * TODO: 인자 전달 구현 (project2/argument_passing.html 참조). */
+	argument_stack(parse, count, &if_->rsp);
+	//hex_dump((uintptr_t)&if_->rip, (uintptr_t)&if_->rip, USER_STACK - (uintptr_t)&if_->rip, true);
+
 
 	success = true;
 
 done:
 	/* We arrive here whether the load is successful or not. */
 	file_close (file);
+	free(fn_copy);  // 메모리 해제
 	return success;
 }
 
@@ -607,3 +639,43 @@ setup_stack (struct intr_frame *if_) {
 	return success;
 }
 #endif /* VM */
+
+void argument_stack(char **parse, int count, void **esp) {
+    int i, j;
+    uint64_t *argv[count]; // 64비트 주소를 위해 uint64_t 사용
+
+    // 인자 역순으로 스택에 푸시
+    for (i = count - 1; i >= 0; i--) {
+        for (j = strlen(parse[i]); j >= 0; j--) {
+            *esp = *esp - 1;
+            **(char **)esp = parse[i][j];
+        }
+        argv[i] = (uint64_t *)*esp;
+    }
+
+    // 워드 정렬을 위한 패딩 추가 (64비트 시스템에서는 8바이트 정렬)
+    while ((uint64_t)*esp % 8 != 0) {
+        *esp = *esp - 1;
+        **(uint8_t **)esp = 0;
+    }
+
+    // NULL 포인터 센티넬 추가
+    *esp = *esp - 8;
+    **(uint64_t **)esp = 0;
+
+    // 인자 주소를 스택에 푸시
+    for (i = count - 1; i >= 0; i--) {
+        *esp = *esp - 8;
+        **(uint64_t **)esp = (uint64_t)argv[i];
+    }
+
+    // argv 배열의 주소 푸시
+    *esp = *esp - 8;
+    **(uint64_t **)esp = (uint64_t)*esp + 8;
+
+    // 페이크 리턴 주소 푸시
+    *esp = *esp - 8;
+    **(uint64_t **)esp = 0;
+
+}
+
