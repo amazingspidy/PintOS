@@ -497,7 +497,7 @@ void recalculate_all(void) {
         calculate_recent_cpu(t);
         calculate_priority_mlfqs(t, NULL);
     }
-}
+}//test
 
 /* 유휴 스레드. 다른 스레드가 실행할 준비가 되어 있지 않을 때 실행됩니다.
 
@@ -764,3 +764,6 @@ void print_sleep_list(void) {
     }
     printf("\n");
 }
+
+
+/*프로젝트 2 전 클론 후 깃 테스트 */
