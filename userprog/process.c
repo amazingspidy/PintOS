@@ -50,15 +50,14 @@ process_create_initd (const char *file_name) {
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
 
-	// char *arg1;
-	// char *next_ptr;
+	char *arg1;
+	char *next_ptr;
 	
-	//strlcpy(next_ptr, file_name, PGSIZE);
-	// arg1 = strtok_r(fn_copy, " ", &next_ptr);
+	
+	arg1 = strtok_r(file_name, " ", &next_ptr);
 
 	/* FILE_NAME을 실행하기 위해 새 스레드를 생성합니다. */
 	//첫번째 인자를 thread_create에 넘기기.
-	//tid = thread_create (arg1, PRI_DEFAULT, initd, fn_copy);
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
@@ -187,22 +186,21 @@ process_exec (void *f_name) {
     char *arg;    
     char *rest; // 분리된 문자열 중 남는 부분의 시작주소
 	arg = strtok_r(file_name, " ", &rest);
+	arg_list[count++] = arg;
     while ((arg = strtok_r(NULL, " ", &rest))) {
 		arg_list[count++] = arg;
 	}
 
     /* 그리고 바이너리를 로드합니다. */
     success = load(file_name, &_if);
-	 /* If load failed, quit. */
 
 
-	  // 스택에 인자 넣기
-    void **rspp = &_if.rsp;
-    argument_stack(arg_list, count, rspp);
+	// 스택에 인자 넣기
+    
+    argument_stack(arg_list, count, &_if.rsp);
 	_if.R.rdi = count;
-	_if.R.rsi = (uint64_t)_if.rsp + 8;
-    hex_dump(_if.rsp, _if.rsp, USER_STACK - (uint64_t)*rspp, true);
-	
+	_if.R.rsi = (uint64_t)_if.rsp + 8;  //이게맞나?
+    hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 	/* 로드에 실패하면 종료합니다. */
     palloc_free_page(file_name);
 	if (!success)
@@ -210,8 +208,7 @@ process_exec (void *f_name) {
         return -1;
     }
 
-
-    /* Start switched process. */
+    /* 스위칭된 프로세스를 시작합니다. */
     do_iret(&_if);
     NOT_REACHED();
 
@@ -222,7 +219,7 @@ void argument_stack(char **parse, int count, void **rsp)
 {
     int i, j;
     uint64_t *argv[count];
-
+	
     // 인자 역순으로 스택에 푸시
     for (i = count - 1; i >= 0; i--) {
         for (j = strlen(parse[i]); j >= 0; j--) {
@@ -230,7 +227,6 @@ void argument_stack(char **parse, int count, void **rsp)
             **(char **)rsp = parse[i][j];
         }
         argv[i] = (uint64_t *)*rsp;
-		
     }
 
     // 워드 정렬을 위한 패딩 추가
@@ -248,8 +244,7 @@ void argument_stack(char **parse, int count, void **rsp)
         *rsp = *rsp - 8;
         **(uint64_t **)rsp = (uint64_t)argv[i];
     }
- 
-
+	
     // 페이크 리턴 주소 푸시
     *rsp = *rsp - 8;
     **(uint64_t **)rsp = 0;
