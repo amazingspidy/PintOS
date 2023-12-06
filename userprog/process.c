@@ -170,11 +170,11 @@ process_exec (void *f_name) {
 	_if.eflags = FLAG_IF | FLAG_MBS;
 
 	/* 우리는 먼저 현재 컨텍스트를 종료합니다. */
-	process_cleanup ();
-
+		process_cleanup ();
+	
 	/* 그리고 바이너리를 로드합니다. */
-	success = load (file_name, &_if);
-	hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+		success = load (file_name, &_if);
+	//hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 
 
 	/* 로드에 실패하면 종료합니다. */
@@ -197,10 +197,8 @@ process_exec (void *f_name) {
 int
 process_wait (tid_t child_tid UNUSED) {
 
-	int i = 0;
-	while( i < 1000 );
-	{
-		i++;
+	for(int i = 0; i < 100000000; i++){
+
 	}
 	/* XXX: 힌트) Pintos가 process_wait(initd)일 때 종료하는 경우, 여기에
 	 * XXX:       무한 루프를 추가하는 것이 좋습니다.
@@ -333,14 +331,16 @@ load (const char *file_name, struct intr_frame *if_) {
     char *token, *save_ptr;
 
 	// 파일 이름 복사 (strtok_r은 원본 문자열을 변경하기 때문에)
-    char *fn_copy = malloc(strlen(file_name) + 1);
-    strlcpy(fn_copy, file_name, strlen(file_name) + 1);
+    //char *fn_copy = malloc(strlen(file_name) + 1);
+    //strlcpy(fn_copy, file_name, strlen(file_name) + 1);
+	
 
 	// 명령줄 인자 분석
-    for (token = strtok_r(fn_copy, " ", &save_ptr); token != NULL;
+	token = strtok_r(file_name, " ", &save_ptr);
+    for (token = strtok_r(NULL, " ", &save_ptr); token != NULL;
          token = strtok_r(NULL, " ", &save_ptr)) {
         if (count >= MAX_ARGS - 1)
-            break;
+            break; 
         parse[count++] = token;
     }
     parse[count] = NULL;  // NULL-terminated array
@@ -433,15 +433,15 @@ load (const char *file_name, struct intr_frame *if_) {
     /* TODO: 여기에 코드 추가.
      * TODO: 인자 전달 구현 (project2/argument_passing.html 참조). */
 	argument_stack(parse, count, &if_->rsp);
-	//hex_dump((uintptr_t)&if_->rip, (uintptr_t)&if_->rip, USER_STACK - (uintptr_t)&if_->rip, true);
+    //hex_dump((uintptr_t)&if_->rip, (uintptr_t)&if_->rip, USER_STACK - (uintptr_t)&if_->rip, true);
 
 
 	success = true;
 
 done:
 	/* We arrive here whether the load is successful or not. */
-	file_close (file);
-	free(fn_copy);  // 메모리 해제
+		file_close (file);
+	//free(fn_copy);  // 메모리 해제
 	return success;
 }
 
@@ -673,9 +673,13 @@ void argument_stack(char **parse, int count, void **esp) {
     *esp = *esp - 8;
     **(uint64_t **)esp = (uint64_t)*esp + 8;
 
+    // 인자 개수 푸시
+    *esp = *esp - 8;
+    **(uint64_t **)esp = count;
+
     // 페이크 리턴 주소 푸시
     *esp = *esp - 8;
     **(uint64_t **)esp = 0;
-
 }
+
 

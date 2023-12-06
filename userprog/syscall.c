@@ -10,6 +10,8 @@
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
+struct file *get_file_from_fd(int fd);
+
 
 /* 시스템 콜.
  *
@@ -38,9 +40,36 @@ syscall_init (void) {
 }
 
 /* 주요 시스템 콜 인터페이스 */
-void
-syscall_handler (struct intr_frame *f UNUSED) {
-	// TODO: 여기에 구현이 들어갑니다.
-	printf ("system call!\n");
-	thread_exit ();
+// void
+// syscall_handler (struct intr_frame *f UNUSED) {
+// 	// TODO: 여기에 구현이 들어갑니다.
+// 	printf ("system call!\n");
+// 	thread_exit ();
+// }
+
+void syscall_handler(struct intr_frame *f UNUSED) {
+    int syscall_number = f->R.rax; // 시스템 호출 번호 읽기
+
+    switch (syscall_number) {
+        case SYS_HALT:
+            //halt(); // 시스템 종료
+            break;
+        case SYS_EXIT:
+            //exit(f->R.rdi); // 프로세스 종료
+            break;
+        case SYS_READ:
+            //f->R.rax = read(f->R.rdi, (void *)f->R.rsi, f->R.rdx); // 파일 읽기
+            break;
+        case SYS_WRITE:
+			process_wait();
+
+            //f->R.rax = write(f->R.rdi, (void *)f->R.rsi, f->R.rdx); // 파일 쓰기
+            break;
+        // 다른 시스템 호출들 추가...
+        default:
+            printf("Unknown system call number: %d\n", syscall_number);
+            thread_exit(); // 알 수 없는 시스템 호출
+            break;
+    }
 }
+

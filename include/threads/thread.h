@@ -100,7 +100,6 @@ struct thread {
     int original_priority; /* Original priority of the thread. */
     int nice;              /* Nice value of the thread. */
     int recent_cpu;        /* Recent cpu value of the thread. */
-    int syscall_result;
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint64_t *pml4; /* Page map level 4 */
