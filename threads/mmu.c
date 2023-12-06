@@ -212,7 +212,7 @@ pml4_activate (uint64_t *pml4) {
  * UADDR is unmapped. */
 void *
 pml4_get_page (uint64_t *pml4, const void *uaddr) {
-	ASSERT (is_user_vaddr (uaddr));
+	ASSERT (is_user_vaddr (uaddr)); //가상 주소 공간에 속하는지 확인
 
 	uint64_t *pte = pml4e_walk (pml4, (uint64_t) uaddr, 0);
 

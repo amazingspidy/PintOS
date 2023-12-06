@@ -8,6 +8,7 @@
         "gdt.h": "c",
         "init.h": "c",
         "debug.h": "c",
-        "syscall-nr.h": "c"
+        "syscall-nr.h": "c",
+        "filesys.h": "c"
     }
 }
