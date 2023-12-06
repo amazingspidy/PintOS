@@ -182,7 +182,6 @@ process_exec (void *f_name) {
     /* 그리고 바이너리를 로드합니다. */
     char *arg_list[100]; // argument 배열
     int count = 0;    // argument 개수
-
     char *arg;    
     char *rest; // 분리된 문자열 중 남는 부분의 시작주소
 	arg = strtok_r(file_name, " ", &rest);
@@ -200,7 +199,7 @@ process_exec (void *f_name) {
     argument_stack(arg_list, count, &_if.rsp);
 	_if.R.rdi = count;
 	_if.R.rsi = (uint64_t)_if.rsp + 8;  //이게맞나?
-    hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+    //hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 	/* 로드에 실패하면 종료합니다. */
     palloc_free_page(file_name);
 	if (!success)
