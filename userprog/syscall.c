@@ -68,9 +68,14 @@ bool remove(const char *file) {
 void syscall_handler(struct intr_frame *f) {
     // 시스템 콜 번호를 RAX 레지스터로부터 읽어옵니다.
     // check_address(&f->rsp);
+    // check_address(&f->rsp);
 
     int syscall_number = f->R.rax;
 
+    // 시스템 콜 결과를 저장할 변수
+    int syscall_result = -1;
+    unsigned initial_size;
+    const char *file;
     // 시스템 콜 번호에 따라 적절한 처리 수행
     switch (syscall_number) {
         case SYS_HALT:
@@ -105,6 +110,7 @@ void syscall_handler(struct intr_frame *f) {
             break;
         case SYS_CLOSE:
             break;
+
         default:
             printf("Unknown system call number: %d\n", syscall_number);
             break;
