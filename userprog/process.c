@@ -51,22 +51,14 @@ tid_t process_create_initd(const char *file_name) {
         return TID_ERROR;
     strlcpy(fn_copy, file_name, PGSIZE);
 
-    char *arg_list[100];  // argument 배열
-    int count = 0;        // argument 개수
+    char *arg1;
+    char *next_ptr;
 
-    char *arg;
-    char *rest;  // 분리된 문자열 중 남는 부분의 시작주소
-    arg = strtok_r(file_name, " ", &rest);
-    arg_list[count++] = arg;
-    while ((arg = strtok_r(NULL, " ", &rest))) {
-        arg_list[count++] = arg;
-    }
-
-    arg_list[count] = NULL;
-    char *real_file_name = arg_list[0];
+    arg1 = strtok_r(file_name, " ", &next_ptr);
 
     /* FILE_NAME을 실행하기 위해 새 스레드를 생성합니다. */
-    tid = thread_create(real_file_name, PRI_DEFAULT, initd, fn_copy);
+    // 첫번째 인자를 thread_create에 넘기기.
+    tid = thread_create(file_name, PRI_DEFAULT, initd, fn_copy);
     if (tid == TID_ERROR)
         palloc_free_page(fn_copy);
     return tid;
@@ -171,6 +163,8 @@ error:
  * 실패하면 -1을 반환합니다. */
 int process_exec(void *f_name) {
     char *file_name = f_name;
+    bool success;
+
     /* 우리는 현재 스레드 구조체에 있는 intr_frame을 사용할 수 없습니다.
      * 이는 현재 스레드가 재스케줄될 때 실행 정보를 멤버에 저장하기 때문입니다. */
     struct intr_frame _if;
@@ -181,7 +175,7 @@ int process_exec(void *f_name) {
     /* 우리는 먼저 현재 컨텍스트를 종료합니다. */
     process_cleanup();
 
-    bool success;
+    /* 그리고 바이너리를 로드합니다. */
     char *arg_list[100];  // argument 배열
     int count = 0;        // argument 개수
 
@@ -195,19 +189,18 @@ int process_exec(void *f_name) {
 
     /* 그리고 바이너리를 로드합니다. */
     success = load(file_name, &_if);
-    /* If load failed, quit. */
 
     // 스택에 인자 넣기
-    void **rspp = &_if.rsp;
-    argument_stack(arg_list, count, rspp);
-    _if.R.rdi = count;
-    _if.R.rsi = (uint64_t)_if.rsp + 8;
-    hex_dump(_if.rsp, _if.rsp, USER_STACK - (uint64_t)*rspp, true);
 
+    argument_stack(arg_list, count, &_if.rsp);
+    _if.R.rdi = count;
+    _if.R.rsi = (uint64_t)_if.rsp + 8;  // 이게맞나?
+    hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
     /* 로드에 실패하면 종료합니다. */
     palloc_free_page(file_name);
-    if (!success)
+    if (!success) {
         return -1;
+    }
 
     /* 스위칭된 프로세스를 시작합니다. */
     do_iret(&_if);
@@ -247,6 +240,7 @@ void argument_stack(char **parse, int count, void **rsp) {
     *rsp = *rsp - 8;
     **(uint64_t **)rsp = 0;
 }
+
 /* 스레드 TID가 종료될 때까지 기다렸다가 그것의 종료 상태를 반환합니다. 만약
  * 커널에 의해 종료되었다면(즉, 예외로 인해 종료되었다면) -1을 반환합니다. 만약
  * TID가 유효하지 않거나 호출 프로세스의 자식이 아니거나, 이미 해당 TID에 대해
@@ -260,6 +254,7 @@ int process_wait(tid_t child_tid UNUSED) {
 
     for (int i = 0; i < 100000000; i++) {
     }
+
     return -1;
 }
 
@@ -328,6 +323,7 @@ void process_activate(struct thread *next) {
 
 /* 실행 가능한 헤더. [ELF1] 1-4부터 1-8까지.
  * 이것은 ELF 바이너리의 맨 처음에 나타납니다. */
+
 struct ELF64_hdr {
     unsigned char e_ident[EI_NIDENT];
     uint16_t e_type;
