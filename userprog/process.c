@@ -57,6 +57,7 @@ tid_t process_create_initd(const char *file_name) {
     char *arg;
     char *rest;  // 분리된 문자열 중 남는 부분의 시작주소
     arg = strtok_r(file_name, " ", &rest);
+    arg_list[count++] = arg;
     while ((arg = strtok_r(NULL, " ", &rest))) {
         arg_list[count++] = arg;
     }
@@ -187,6 +188,7 @@ int process_exec(void *f_name) {
     char *arg;
     char *rest;  // 분리된 문자열 중 남는 부분의 시작주소
     arg = strtok_r(file_name, " ", &rest);
+    arg_list[count++] = arg;
     while ((arg = strtok_r(NULL, " ", &rest))) {
         arg_list[count++] = arg;
     }
