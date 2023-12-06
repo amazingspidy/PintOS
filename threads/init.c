@@ -241,6 +241,7 @@ run_task(char **argv) {
 
     printf("Executing '%s':\n", task);
 #ifdef USERPROG
+    // printf("11\n");
     if (thread_tests) {
         run_test(task);
     } else {
