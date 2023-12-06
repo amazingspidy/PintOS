@@ -243,7 +243,6 @@ int process_wait(tid_t child_tid UNUSED) {
 
     for (int i = 0; i < 100000000; i++) {
     }
-
     return -1;
 }
 

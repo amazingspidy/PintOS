@@ -47,11 +47,14 @@ void syscall_init(void) {
 // }
 
 void check_address(void *addr) {
-    if (!is_user_vaddr(addr)) {
-    }
+	if (!is_user_vaddr(addr)) {
+		exit(-1);
+	}
 }
+
 void syscall_handler(struct intr_frame *f) {
     // 시스템 콜 번호를 RAX 레지스터로부터 읽어옵니다.
+    // check_address(&f->rsp);
     // check_address(&f->rsp);
 
     int syscall_number = f->R.rax;
@@ -63,14 +66,10 @@ void syscall_handler(struct intr_frame *f) {
     // 시스템 콜 번호에 따라 적절한 처리 수행
     switch (syscall_number) {
         case SYS_HALT:
-            // ... halt 처리 ...
-            // halt();
-            power_off();
+            halt();
             break;
         case SYS_EXIT:
-            // ... exit 처리 ...
-            // exit(f->R.rdi);  // 예를 들어, exit 시스템 콜의 인자는 RDI
-            // 레지스터에 저장됩니다.
+            exit((int)f->R.rdi);
             break;
         case SYS_FORK:
             break;
@@ -97,6 +96,7 @@ void syscall_handler(struct intr_frame *f) {
             break;
         case SYS_CLOSE:
             break;
+        
         default:
             printf("Unknown system call number: %d\n", syscall_number);
             break;
@@ -107,5 +107,12 @@ void syscall_handler(struct intr_frame *f) {
 
     // 시스템 콜이 종료된 후의 동작을 수행할 수 있습니다.
     // 예를 들어, 스레드를 종료시키는 대신 다른 작업을 수행할 수 있습니다.
+    thread_exit();
+}
+
+void halt(void) { power_off(); }
+
+void exit(int status) {
+    printf("%s: exit(%d)\n", thread_current()->name, status);
     thread_exit();
 }

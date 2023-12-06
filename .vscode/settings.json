@@ -5,6 +5,13 @@
         "inttypes.h": "c",
         "fixed_point.h": "c",
         "stdint.h": "c",
+<<<<<<< HEAD
         "syscall.h": "c"
+=======
+        "gdt.h": "c",
+        "init.h": "c",
+        "debug.h": "c",
+        "syscall-nr.h": "c"
+>>>>>>> d88571fbd448b4db4e4928d6b5ee27a44ab92a33
     }
 }
