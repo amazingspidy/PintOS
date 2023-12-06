@@ -50,7 +50,14 @@ process_create_initd (const char *file_name) {
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
 
+	char *arg1;
+	char *next_ptr;
+	
+	
+	arg1 = strtok_r(file_name, " ", &next_ptr);
+
 	/* FILE_NAME을 실행하기 위해 새 스레드를 생성합니다. */
+	//첫번째 인자를 thread_create에 넘기기.
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
@@ -159,29 +166,88 @@ error:
 int
 process_exec (void *f_name) {
 	char *file_name = f_name;
-	bool success;
+    bool success;
+    
 
-	/* 우리는 현재 스레드 구조체에 있는 intr_frame을 사용할 수 없습니다.
+    /* 우리는 현재 스레드 구조체에 있는 intr_frame을 사용할 수 없습니다.
 	 * 이는 현재 스레드가 재스케줄될 때 실행 정보를 멤버에 저장하기 때문입니다. */
-	struct intr_frame _if;
-	_if.ds = _if.es = _if.ss = SEL_UDSEG;
-	_if.cs = SEL_UCSEG;
-	_if.eflags = FLAG_IF | FLAG_MBS;
+    struct intr_frame _if;
+    _if.ds = _if.es = _if.ss = SEL_UDSEG;
+    _if.cs = SEL_UCSEG;
+    _if.eflags = FLAG_IF | FLAG_MBS;
 
-	/* 우리는 먼저 현재 컨텍스트를 종료합니다. */
-	process_cleanup ();
+    /* 우리는 먼저 현재 컨텍스트를 종료합니다. */
+    process_cleanup();
 
-	/* 그리고 바이너리를 로드합니다. */
-	success = load (file_name, &_if);
+    /* 그리고 바이너리를 로드합니다. */
+    char *arg_list[100]; // argument 배열
+    int count = 0;    // argument 개수
 
+    char *arg;    
+    char *rest; // 분리된 문자열 중 남는 부분의 시작주소
+	arg = strtok_r(file_name, " ", &rest);
+	arg_list[count++] = arg;
+    while ((arg = strtok_r(NULL, " ", &rest))) {
+		arg_list[count++] = arg;
+	}
+
+    /* 그리고 바이너리를 로드합니다. */
+    success = load(file_name, &_if);
+
+
+	// 스택에 인자 넣기
+    
+    argument_stack(arg_list, count, &_if.rsp);
+	_if.R.rdi = count;
+	_if.R.rsi = (uint64_t)_if.rsp + 8;  //이게맞나?
+    hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 	/* 로드에 실패하면 종료합니다. */
-	palloc_free_page (file_name);
+    palloc_free_page(file_name);
 	if (!success)
-		return -1;
+    {
+        return -1;
+    }
 
-	/* 스위칭된 프로세스를 시작합니다. */
-	do_iret (&_if);
-	NOT_REACHED ();
+    /* 스위칭된 프로세스를 시작합니다. */
+    do_iret(&_if);
+    NOT_REACHED();
+
+}
+
+
+void argument_stack(char **parse, int count, void **rsp)
+{
+    int i, j;
+    uint64_t *argv[count];
+	
+    // 인자 역순으로 스택에 푸시
+    for (i = count - 1; i >= 0; i--) {
+        for (j = strlen(parse[i]); j >= 0; j--) {
+            *rsp = *rsp - 1;
+            **(char **)rsp = parse[i][j];
+        }
+        argv[i] = (uint64_t *)*rsp;
+    }
+
+    // 워드 정렬을 위한 패딩 추가
+    while ((uint64_t)*rsp % 8 != 0) {
+        *rsp = *rsp - 1;
+        **(uint8_t **)rsp = 0;
+    }
+
+    // NULL 포인터 센티넬 추가
+    *rsp = *rsp - 8;
+    **(uint64_t **)rsp = 0;
+
+   // 인자 주소를 스택에 푸시
+    for (i = count - 1; i >= 0; i--) {
+        *rsp = *rsp - 8;
+        **(uint64_t **)rsp = (uint64_t)argv[i];
+    }
+	
+    // 페이크 리턴 주소 푸시
+    *rsp = *rsp - 8;
+    **(uint64_t **)rsp = 0;
 }
 
 
@@ -196,6 +262,11 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: 힌트) Pintos가 process_wait(initd)일 때 종료하는 경우, 여기에
 	 * XXX:       무한 루프를 추가하는 것이 좋습니다.
 	 * XXX:       process_wait을 구현하기 전까지는. */
+
+	for (int i = 0; i < 100000000; i++)
+    {
+    }
+
 	return -1;
 }
 
@@ -266,6 +337,7 @@ process_activate (struct thread *next) {
 
 /* 실행 가능한 헤더. [ELF1] 1-4부터 1-8까지.
  * 이것은 ELF 바이너리의 맨 처음에 나타납니다. */
+
 struct ELF64_hdr {
 	unsigned char e_ident[EI_NIDENT];
 	uint16_t e_type;

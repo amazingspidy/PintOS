@@ -62,11 +62,12 @@ test_priority_fifo (void)
       d->op = &op;
       thread_create (name, PRI_DEFAULT + 1, simple_thread_func, d);
     }
-
+  //print_ready_list();
   thread_set_priority (PRI_DEFAULT);
   /* All the other threads now run to termination here. */
   ASSERT (lock.holder == NULL);
-
+  //print_ready_list();
+  
   cnt = 0;
   for (; output < op; output++) 
     {
