@@ -206,7 +206,7 @@ tid_t thread_create(const char *name, int priority,
     /* 실행 대기 큐에 추가. */
     thread_unblock(t);
     thread_switching();
-
+    //printf("thread_name is = %s\n", name);
     return tid;
 }
 

@@ -47,29 +47,62 @@ syscall_init (void) {
 // 	thread_exit ();
 // }
 
-void syscall_handler(struct intr_frame *f UNUSED) {
-    int syscall_number = f->R.rax; // 시스템 호출 번호 읽기
+void check_address(void *addr) {
+	if (!is_user_vaddr(addr)) {
+		
+	}
+}
+void syscall_handler(struct intr_frame *f) {
+    // 시스템 콜 번호를 RAX 레지스터로부터 읽어옵니다.
+	//check_address(&f->rsp);
 
+
+    int syscall_number = f->R.rax;
+
+    // 시스템 콜 결과를 저장할 변수
+    int syscall_result = -1;
+
+    // 시스템 콜 번호에 따라 적절한 처리 수행
     switch (syscall_number) {
         case SYS_HALT:
-            //halt(); // 시스템 종료
+            // ... halt 처리 ...
+            power_off();
             break;
         case SYS_EXIT:
-            //exit(f->R.rdi); // 프로세스 종료
+            // ... exit 처리 ...
+            //exit(f->R.rdi);  // 예를 들어, exit 시스템 콜의 인자는 RDI 레지스터에 저장됩니다.
             break;
-        case SYS_READ:
-            //f->R.rax = read(f->R.rdi, (void *)f->R.rsi, f->R.rdx); // 파일 읽기
-            break;
-        case SYS_WRITE:
-			process_wait();
-
-            //f->R.rax = write(f->R.rdi, (void *)f->R.rsi, f->R.rdx); // 파일 쓰기
-            break;
-        // 다른 시스템 호출들 추가...
+		case SYS_FORK:
+			break;
+		case SYS_EXEC:
+			break;
+		case SYS_WAIT:
+			break;
+		case SYS_CREATE:
+			break;
+		case SYS_REMOVE:
+			break;
+		case SYS_OPEN:
+			break;
+		case SYS_FILESIZE:
+			break;
+		case SYS_READ:
+			break;
+		case SYS_WRITE:
+			break;
+		case SYS_TELL:
+			break;
+		case SYS_CLOSE:
+			break;
         default:
             printf("Unknown system call number: %d\n", syscall_number);
-            thread_exit(); // 알 수 없는 시스템 호출
             break;
     }
-}
 
+    // 시스템 콜 처리 결과를 RAX 레지스터에 저장
+    f->R.rax = syscall_result;
+
+    // 시스템 콜이 종료된 후의 동작을 수행할 수 있습니다.
+    // 예를 들어, 스레드를 종료시키는 대신 다른 작업을 수행할 수 있습니다.
+    thread_exit();
+}
