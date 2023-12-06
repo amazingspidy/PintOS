@@ -5,6 +5,7 @@
         "inttypes.h": "c",
         "fixed_point.h": "c",
         "stdint.h": "c",
+        "syscall.h": "c",
         "gdt.h": "c",
         "init.h": "c",
         "debug.h": "c",
