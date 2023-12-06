@@ -4,6 +4,11 @@
         "thread.h": "c",
         "inttypes.h": "c",
         "fixed_point.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "gdt.h": "c",
+        "init.h": "c",
+        "debug.h": "c",
+        "syscall-nr.h": "c",
+        "filesys.h": "c"
     }
 }

@@ -11,7 +11,8 @@
 #endif
 
 /* States in a thread's life cycle. */
-enum thread_status {
+enum thread_status
+{
     THREAD_RUNNING, /* Running thread. */
     THREAD_READY,   /* Not running but ready to run. */
     THREAD_BLOCKED, /* Waiting for an event to trigger. */
@@ -85,7 +86,8 @@ typedef int tid_t;
  * only because they are mutually exclusive: only a thread in the
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
-struct thread {
+struct thread
+{
     /* Owned by thread.c. */
     tid_t tid;                 /* Thread identifier. */
     enum thread_status status; /* Thread state. */

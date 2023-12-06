@@ -28,7 +28,10 @@ static void process_cleanup(void);
 static bool load(const char *file_name, struct intr_frame *if_);
 static void initd(void *f_name);
 static void __do_fork(void *);
+<<<<<<< HEAD
 static void argument_stack(char **parse, int count, void **esp);
+=======
+>>>>>>> d88571fbd448b4db4e4928d6b5ee27a44ab92a33
 
 /* 일반 프로세스 초기화기(initd 및 기타 프로세스를 위한). */
 static void process_init(void) { struct thread *current = thread_current(); }
@@ -238,15 +241,21 @@ void argument_stack(char **parse, int count, void **rsp) {
  *
  * 이 함수는 문제 2-2에서 구현될 것입니다. 지금은 아무 것도 하지 않습니다. */
 int process_wait(tid_t child_tid UNUSED) {
+<<<<<<< HEAD
     for (int i = 0; i < 100000000; i++) {
     }
+=======
+>>>>>>> d88571fbd448b4db4e4928d6b5ee27a44ab92a33
     /* XXX: 힌트) Pintos가 process_wait(initd)일 때 종료하는 경우, 여기에
      * XXX:       무한 루프를 추가하는 것이 좋습니다.
      * XXX:       process_wait을 구현하기 전까지는. */
 
     for (int i = 0; i < 100000000; i++) {
     }
+<<<<<<< HEAD
 
+=======
+>>>>>>> d88571fbd448b4db4e4928d6b5ee27a44ab92a33
     return -1;
 }
 
@@ -358,7 +367,10 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
  * 실행 파일의 진입점을 *RIP에 저장하고
  * 초기 스택 포인터를 *RSP에 저장합니다.
  * 성공하면 true를 반환하고, 그렇지 않으면 false를 반환합니다. */
+<<<<<<< HEAD
 #define MAX_ARGS 128
+=======
+>>>>>>> d88571fbd448b4db4e4928d6b5ee27a44ab92a33
 static bool load(const char *file_name, struct intr_frame *if_) {
     struct thread *t = thread_current();
     struct ELF ehdr;
@@ -366,6 +378,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
     off_t file_ofs;
     bool success = false;
     int i;
+<<<<<<< HEAD
 
     char *parse[MAX_ARGS];
     int count = 0;
@@ -383,6 +396,8 @@ static bool load(const char *file_name, struct intr_frame *if_) {
         parse[count++] = token;
     }
     parse[count] = NULL;  // NULL-terminated array
+=======
+>>>>>>> d88571fbd448b4db4e4928d6b5ee27a44ab92a33
 
     /* 페이지 디렉토리 할당 및 활성화 */
     t->pml4 = pml4_create();
@@ -476,7 +491,10 @@ static bool load(const char *file_name, struct intr_frame *if_) {
 done:
     /* We arrive here whether the load is successful or not. */
     file_close(file);
+<<<<<<< HEAD
     // free(fn_copy);  // 메모리 해제
+=======
+>>>>>>> d88571fbd448b4db4e4928d6b5ee27a44ab92a33
     return success;
 }
 
@@ -553,6 +571,7 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
             return false;
         }
         memset(kpage + page_read_bytes, 0, page_zero_bytes);
+<<<<<<< HEAD
 
         /* 페이지를 프로세스의 주소 공간에 추가합니다. */
         if (!install_page(upage, kpage, writable)) {
@@ -561,6 +580,16 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
             return false;
         }
 
+=======
+
+        /* 페이지를 프로세스의 주소 공간에 추가합니다. */
+        if (!install_page(upage, kpage, writable)) {
+            printf("fail\n");
+            palloc_free_page(kpage);
+            return false;
+        }
+
+>>>>>>> d88571fbd448b4db4e4928d6b5ee27a44ab92a33
         /* 진행합니다. */
         read_bytes -= page_read_bytes;
         zero_bytes -= page_zero_bytes;

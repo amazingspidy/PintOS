@@ -13,7 +13,6 @@
 
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
-struct file *get_file_from_fd(int fd);
 
 /* 시스템 콜.
  *
@@ -40,22 +39,28 @@ void syscall_init(void) {
               FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 }
 
-void check_address(const void *addr) {
-    // 주소가 NULL이거나 유효한 사용자 주소가 아닌 경우
-    if (addr == NULL || !is_user_vaddr(addr)) {
-        // 에러 메시지 출력 및 현재 스레드 종료
-        printf("Error: Invalid memory access attempt.\n");
-        thread_exit();
+void check_address(void *addr) {
+    if (!is_user_vaddr(addr)) {
+        exit(-1);
     }
+}
 
-    // 여기에 추가적인 메모리 검증 로직을 추가할 수 있습니다.
-    // 예: 페이지 테이블에서 해당 주소가 가리키는 페이지가 존재하는지 확인
+void halt(void) { power_off(); }
+
+void exit(int status) {
+    printf("%s: exit(%d)\n", thread_current()->name, status);
+    thread_exit();
 }
 
 bool create(const char *file, unsigned initial_size) {
     if (file == NULL) exit(-1);
     bool result = (filesys_create(file, initial_size));
-    printf("파일 생성 완료");
+    return result;
+}
+
+bool remove(const char *file) {
+    if (file == NULL) exit(-1);
+    bool result = (filesys_remove(file));
     return result;
 }
 
@@ -69,14 +74,12 @@ void syscall_handler(struct intr_frame *f) {
     int syscall_result = -1;
 
     // 시스템 콜 번호에 따라 적절한 처리 수행
-    switch (5) {
+    switch (syscall_number) {
         case SYS_HALT:
-            // ... halt 처리 ...
+            halt();
             break;
         case SYS_EXIT:
-            // ... exit 처리 ...
-            // exit(f->R.rdi);  // 예를 들어, exit 시스템 콜의 인자는 RDI
-            // 레지스터에 저장됩니다.
+            exit((int)f->R.rdi);
             break;
         case SYS_FORK:
             break;
@@ -89,6 +92,8 @@ void syscall_handler(struct intr_frame *f) {
             f->R.rax = create(f->R.rdi, f->R.rsi);
             break;
         case SYS_REMOVE:
+            check_address(f->R.rdi);
+            f->R.rax = remove(f->R.rdi);
             break;
         case SYS_OPEN:
             break;
