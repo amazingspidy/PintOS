@@ -55,6 +55,7 @@ void exit(int status) {
 bool create(const char *file, unsigned initial_size) {
     if (file == NULL) exit(-1);
     bool result = (filesys_create(file, initial_size));
+    printf("파일생성 완료.");
     return result;
 }
 
@@ -69,9 +70,6 @@ void syscall_handler(struct intr_frame *f) {
     // check_address(&f->rsp);
 
     int syscall_number = f->R.rax;
-
-    // 시스템 콜 결과를 저장할 변수
-    int syscall_result = -1;
 
     // 시스템 콜 번호에 따라 적절한 처리 수행
     switch (syscall_number) {
@@ -113,7 +111,6 @@ void syscall_handler(struct intr_frame *f) {
     }
 
     // 시스템 콜 처리 결과를 RAX 레지스터에 저장
-    f->R.rax = syscall_result;
 
     // 시스템 콜이 종료된 후의 동작을 수행할 수 있습니다.
     // 예를 들어, 스레드를 종료시키는 대신 다른 작업을 수행할 수 있습니다.
