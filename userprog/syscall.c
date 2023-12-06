@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <syscall-nr.h>
 
+#include "filesys/filesys.h"
 #include "intrinsic.h"
 #include "threads/flags.h"
 #include "threads/interrupt.h"
@@ -38,18 +39,29 @@ void syscall_init(void) {
               FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
 }
 
-/* 주요 시스템 콜 인터페이스 */
-// void
-// syscall_handler (struct intr_frame *f UNUSED) {
-// 	// TODO: 여기에 구현이 들어갑니다.
-// 	printf ("system call!\n");
-// 	thread_exit ();
-// }
-
 void check_address(void *addr) {
-	if (!is_user_vaddr(addr)) {
-		exit(-1);
-	}
+    if (!is_user_vaddr(addr)) {
+        exit(-1);
+    }
+}
+
+void halt(void) { power_off(); }
+
+void exit(int status) {
+    printf("%s: exit(%d)\n", thread_current()->name, status);
+    thread_exit();
+}
+
+bool create(const char *file, unsigned initial_size) {
+    if (file == NULL) exit(-1);
+    bool result = (filesys_create(file, initial_size));
+    return result;
+}
+
+bool remove(const char *file) {
+    if (file == NULL) exit(-1);
+    bool result = (filesys_remove(file));
+    return result;
 }
 
 void syscall_handler(struct intr_frame *f) {
@@ -78,11 +90,12 @@ void syscall_handler(struct intr_frame *f) {
         case SYS_WAIT:
             break;
         case SYS_CREATE:
-            file = f->R.rsi;
-            initial_size = f->R.rdi;
-            filesys_create(file, initial_size);
+            check_address(f->R.rdi);
+            f->R.rax = create(f->R.rdi, f->R.rsi);
             break;
         case SYS_REMOVE:
+            check_address(f->R.rdi);
+            f->R.rax = remove(f->R.rdi);
             break;
         case SYS_OPEN:
             break;
@@ -96,7 +109,7 @@ void syscall_handler(struct intr_frame *f) {
             break;
         case SYS_CLOSE:
             break;
-        
+
         default:
             printf("Unknown system call number: %d\n", syscall_number);
             break;
@@ -107,12 +120,5 @@ void syscall_handler(struct intr_frame *f) {
 
     // 시스템 콜이 종료된 후의 동작을 수행할 수 있습니다.
     // 예를 들어, 스레드를 종료시키는 대신 다른 작업을 수행할 수 있습니다.
-    thread_exit();
-}
-
-void halt(void) { power_off(); }
-
-void exit(int status) {
-    printf("%s: exit(%d)\n", thread_current()->name, status);
     thread_exit();
 }

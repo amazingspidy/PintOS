@@ -28,7 +28,7 @@ static void process_cleanup(void);
 static bool load(const char *file_name, struct intr_frame *if_);
 static void initd(void *f_name);
 static void __do_fork(void *);
-
+void argument_stack(char **parse, int count, void **rsp);
 /* 일반 프로세스 초기화기(initd 및 기타 프로세스를 위한). */
 static void process_init(void) { struct thread *current = thread_current(); }
 
@@ -184,7 +184,8 @@ int process_exec(void *f_name) {
     argument_stack(arg_list, count, &_if.rsp);
     _if.R.rdi = count;
     _if.R.rsi = (uint64_t)_if.rsp + 8;  // 이게맞나?
-    // hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+	
+    //hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
     /* 로드에 실패하면 종료합니다. */
     palloc_free_page(file_name);
     if (!success) {
@@ -354,6 +355,7 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
  * 실행 파일의 진입점을 *RIP에 저장하고
  * 초기 스택 포인터를 *RSP에 저장합니다.
  * 성공하면 true를 반환하고, 그렇지 않으면 false를 반환합니다. */
+#define MAX_ARGS 128
 static bool load(const char *file_name, struct intr_frame *if_) {
     struct thread *t = thread_current();
     struct ELF ehdr;
@@ -445,6 +447,8 @@ static bool load(const char *file_name, struct intr_frame *if_) {
 
     /* TODO: 여기에 코드 추가.
      * TODO: 인자 전달 구현 (project2/argument_passing.html 참조). */
+    // hex_dump((uintptr_t)&if_->rip, (uintptr_t)&if_->rip, USER_STACK -
+    // (uintptr_t)&if_->rip, true);
 
     success = true;
 
