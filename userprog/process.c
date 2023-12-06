@@ -184,8 +184,8 @@ int process_exec(void *f_name) {
     argument_stack(arg_list, count, &_if.rsp);
     _if.R.rdi = count;
     _if.R.rsi = (uint64_t)_if.rsp + 8;  // 이게맞나?
-	
-    //hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+
+    // hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
     /* 로드에 실패하면 종료합니다. */
     palloc_free_page(file_name);
     if (!success) {
