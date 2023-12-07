@@ -10,8 +10,8 @@ int main(int argc, char *argv[]) {
 
     test_name = "args";
 
-    printf("argc = %p\n", argc);
-    printf("argv = %p\n", argv);
+    // printf("argc = %p\n", argc);
+    // printf("argv = %p\n", argv);
 
     if (((unsigned long long)argv & 7) != 0)
         msg("argv and stack must be word-aligned, actually %p", argv);

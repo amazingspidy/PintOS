@@ -12,6 +12,8 @@
         "syscall-nr.h": "c",
         "filesys.h": "c",
         "loader.h": "c",
-        "interrupt.h": "c"
+        "interrupt.h": "c",
+        "intrinsic.h": "c",
+        "flags.h": "c"
     }
 }

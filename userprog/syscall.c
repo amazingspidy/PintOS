@@ -1,12 +1,10 @@
 #include "userprog/syscall.h"
 
 #include <stdio.h>
-#include <sys/types.h>
 #include <syscall-nr.h>
 
 #include "filesys/filesys.h"
 #include "intrinsic.h"
-#include "syscall.h"
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/loader.h"
@@ -74,6 +72,16 @@ bool remove(const char *file) {
     return result;
 }
 
+int write(int fd, void *buffer, unsigned size) {
+    check_address(buffer);
+    if (fd == 1) {
+        putbuf(buffer, size);
+        return size;
+    } else {
+        return -1;
+    }
+}
+
 void syscall_handler(struct intr_frame *f) {
     // 시스템 콜 번호를 RAX 레지스터로부터 읽어옵니다.
     // check_address(&f->rsp);
@@ -114,6 +122,8 @@ void syscall_handler(struct intr_frame *f) {
         case SYS_READ:
             break;
         case SYS_WRITE:
+            f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
+            break;
             break;
         case SYS_TELL:
             break;
@@ -126,9 +136,9 @@ void syscall_handler(struct intr_frame *f) {
     }
 
     // 시스템 콜 처리 결과를 RAX 레지스터에 저장
-    f->R.rax = syscall_result;
+    // f->R.rax = syscall_result;
 
     // 시스템 콜이 종료된 후의 동작을 수행할 수 있습니다.
     // 예를 들어, 스레드를 종료시키는 대신 다른 작업을 수행할 수 있습니다.
-    thread_exit();
+    // thread_exit();
 }
