@@ -1,10 +1,12 @@
 #include "userprog/syscall.h"
 
 #include <stdio.h>
+#include <sys/types.h>
 #include <syscall-nr.h>
 
 #include "filesys/filesys.h"
 #include "intrinsic.h"
+#include "syscall.h"
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/loader.h"
@@ -42,6 +44,14 @@ void syscall_init(void) {
 void check_address(void *addr) {
     if (!is_user_vaddr(addr)) {
         exit(-1);
+    }
+}
+
+void get_argument(void *esp, int *arg, int count) {
+    int i;
+    for (i = 0; i < count; i++) {
+        check_address(esp + i * 8);
+        arg[i] = *(int *)(esp + i * 8);
     }
 }
 

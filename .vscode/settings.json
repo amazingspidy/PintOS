@@ -10,6 +10,8 @@
         "init.h": "c",
         "debug.h": "c",
         "syscall-nr.h": "c",
-        "filesys.h": "c"
+        "filesys.h": "c",
+        "loader.h": "c",
+        "interrupt.h": "c"
     }
 }

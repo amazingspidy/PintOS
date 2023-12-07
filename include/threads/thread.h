@@ -11,8 +11,7 @@
 #endif
 
 /* States in a thread's life cycle. */
-enum thread_status
-{
+enum thread_status {
     THREAD_RUNNING, /* Running thread. */
     THREAD_READY,   /* Not running but ready to run. */
     THREAD_BLOCKED, /* Waiting for an event to trigger. */
@@ -86,8 +85,7 @@ typedef int tid_t;
  * only because they are mutually exclusive: only a thread in the
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
-struct thread
-{
+struct thread {
     /* Owned by thread.c. */
     tid_t tid;                 /* Thread identifier. */
     enum thread_status status; /* Thread state. */
@@ -97,7 +95,8 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;     /* List element. */
     struct lock *waiting_lock; /* Lock that the thread is waiting on. */
-    struct list donation_list; /* List of threads that donated priority to this thread. */
+    struct list donation_list; /* List of threads that donated priority to this
+                                  thread. */
     struct list_elem donation_elem;
     int original_priority; /* Original priority of the thread. */
     int nice;              /* Nice value of the thread. */
@@ -114,6 +113,14 @@ struct thread
     /* Owned by thread.c. */
     struct intr_frame tf; /* Information for switching */
     unsigned magic;       /* Detects stack overflow. */
+
+    struct thread *parent;       /* Parent thread. */
+    struct list child_list;      /* List of child threads. */
+    struct list_elem child_elem; /* List element for child_list. */
+
+    bool exit_called; /* 프로세스 종료 유무 */
+    int exit_status;  /* 정상적으로 종료되었는지 여부 */
+    int load_success; /* 자식 프로세스가 성공적으로 생성되었는지 여부 */
 };
 
 /* If false (default), use round-robin scheduler.
@@ -150,7 +157,8 @@ int thread_get_load_avg(void);
 
 void do_iret(struct intr_frame *tf);
 bool cmp_priority(const struct list_elem *, const struct list_elem *, void *);
-bool cmp_wake_up_time(const struct list_elem *, const struct list_elem *, void *);
+bool cmp_wake_up_time(const struct list_elem *, const struct list_elem *,
+                      void *);
 void thread_switching(void);
 void print_ready_list(void);
 void print_sleep_list(void);
