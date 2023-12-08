@@ -176,6 +176,8 @@ int process_exec(void *f_name) {
         arg_list[count++] = arg;
     }
 
+    arg_list[count] = NULL;
+
     /* 그리고 바이너리를 로드합니다. */
     success = load(file_name, &_if);
 
@@ -247,15 +249,51 @@ int process_wait(tid_t child_tid UNUSED) {
     return -1;
 }
 
+void process_close_file(int fd) {
+    /*파일닫기*/
+    struct thread *cur = thread_current();
+    struct file **cur_fdt = cur->fd_table;
+    file_close(cur_fdt[fd]);
+    cur_fdt[fd] = NULL;
+}
+
 /* 프로세스를 종료합니다. 이 함수는 thread_exit()에 의해 호출됩니다. */
 void process_exit(void) {
     struct thread *curr = thread_current();
     /* TODO: 여기에 코드가 들어갑니다.
      * TODO: 프로세스 종료 메시지 구현 (project2/process_termination.html 참조).
      * TODO: 프로세스 리소스 정리를 여기에서 구현하는 것이 좋습니다. */
-    // thread가 죽으면 palloc_free_page(t->fdt); 진행하기.
-    palloc_free_page(curr->fdt);
+    int max_fd = curr->next_fd_idx;
+    for (int i = 0; i <= max_fd; i++) {
+        process_close_file(i);
+    }
+
     process_cleanup();
+}
+
+struct thread *get_child_process(int pid) {
+    struct thread *curr = thread_current();
+    struct list_elem *e;
+
+    for (e = list_begin(&curr->child_list); e != list_end(&curr->child_list);
+         e = list_next(e)) {
+        struct thread *t = list_entry(e, struct thread, child_elem);
+        if (pid == t->tid) {
+            return t;
+        }
+    }
+    return NULL;
+}
+
+void remove_child_process(struct thread *cp) {
+    list_remove(&cp->child_elem);
+    palloc_free_page(cp);
+}
+
+static void start_process(void *f_name) {
+    process_init();
+    process_exec(f_name);
+    NOT_REACHED();
 }
 
 /* 현재 프로세스의 리소스를 해제합니다. */

@@ -122,8 +122,9 @@ static void page_fault(struct intr_frame *f) {
     not_present = (f->error_code & PF_P) == 0;
     write = (f->error_code & PF_W) != 0;
     user = (f->error_code & PF_U) != 0;
-    /////추가////
+
     exit(-1);
+
 #ifdef VM
     /* 프로젝트 3 이후에 대한 부분. */
     if (vm_try_handle_fault(f, fault_addr, user, write, not_present)) return;

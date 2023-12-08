@@ -10,7 +10,7 @@
 #include "threads/loader.h"
 #include "threads/thread.h"
 #include "userprog/gdt.h"
-
+#include "userprog/process.h"
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
 
@@ -45,37 +45,12 @@ void check_address(void *addr) {
     }
 }
 
-struct thread *get_child_process(int tid) {
-    /* 자식 리스트를 검색하여 프로세스 디스크립터의 주소 리턴 */
-    struct list *cur_child_list = &thread_current()->child_list;
-    struct list_elem *child;
-    struct thread *t;
-    for (child = list_begin(cur_child_list);
-         child != list_end(cur_child_list);) {
-        t = list_entry(child, struct thread, child_elem);
-        if (t->tid == tid) {
-            return t;
-        }
-        child = list_next(child);
+void get_argument(void *esp, int *arg, int count) {
+    int i;
+    for (i = 0; i < count; i++) {
+        check_address(esp + i * 8);
+        arg[i] = *(int *)(esp + i * 8);
     }
-    return NULL;
-}
-
-void remove_child_process(struct thread *cp) {
-    /*프로세스 디스크립터를 자식 리스트에서 제거 후 메모리 해제*/
-    struct list *cur_child_list = &thread_current()->child_list;
-    struct list_elem *child;
-    struct thread *t;
-    for (child = list_begin(cur_child_list);
-         child != list_end(cur_child_list);) {
-        t = list_entry(child, struct thread, child_elem);
-        if (t == cp) {
-            list_remove(child);
-            palloc_free_page(t);  // 이게 맞는지 모르겠따.
-        }
-        child = list_next(child);
-    }
-    // 메모리해제는 어떻게해야하노??
 }
 
 void halt(void) { power_off(); }
@@ -83,6 +58,12 @@ void halt(void) { power_off(); }
 void exit(int status) {
     printf("%s: exit(%d)\n", thread_current()->name, status);
     thread_exit();
+}
+
+int exec(const char *file) {
+    tid_t exec_tid = process_create_initd(file);
+    return exec_tid;
+    // return -1;
 }
 
 bool create(const char *file, unsigned initial_size) {
@@ -107,26 +88,63 @@ int write(int fd, void *buffer, unsigned size) {
     }
 }
 
-// for open syscall!
-int process_add_file(struct file *f) {
-    struct thread *cur = thread_current();
-    struct file **cur_fdt = cur->fdt;
-    int file_descriptor = cur->next_fd;
-    cur_fdt[file_descriptor] = f;
-    cur->next_fd++;
-
-    return file_descriptor;
-}
 int open(const char *file) {
     if (file == NULL) exit(-1);
-    struct file *open_file = filesys_open(file);
-    if (open_file == NULL) {
+    struct file *f = filesys_open(file);
+    if (f == NULL) {
         return -1;
     }
-    int fd = process_add_file(open_file);
-    return fd;
+    thread_current()->fd_table[thread_current()->next_fd_idx] = f;
+    return thread_current()->next_fd_idx++;
 }
 
+struct file *process_get_file(int fd) {
+    /*파일 객체(struct file)를 검색하는 함수*/
+    struct thread *cur = thread_current();
+    struct file **cur_fdt = cur->fd_table;
+    if (cur_fdt[fd] == NULL) {
+        return NULL;
+    }
+    return cur_fdt[fd];
+}
+
+int filesize(int fd) {
+    struct file *cur_file = process_get_file(fd);
+    if (cur_file == NULL) {
+        return -1;
+    }
+    return file_length(cur_file);
+}
+
+void seek(int fd, unsigned position) {
+    /*열린 파일의 위치(offset)를 이동하는 시스템 콜
+    Position : 현재 위치(offset)를 기준으로 이동할 거리*/
+    struct file *cur_file = process_get_file(fd);
+
+    file_seek(cur_file, position);
+}
+
+unsigned tell(int fd) {
+    /*열린 파일의 위치(offset)를 알려주는 시스템 콜
+    성공 시 파일의 위치(offset)를 반환, 실패 시 -1 반환*/
+    struct file *cur_file = process_get_file(fd);
+    if (cur_file == NULL) {
+        return -1;
+    }
+    return file_tell(cur_file);
+}
+
+void close(int fd) {
+    if (fd < 0 || fd >= thread_current()->next_fd_idx) {
+        return;
+    }
+    struct file *f = thread_current()->fd_table[fd];
+    if (f == NULL) {
+        return;
+    }
+    file_close(f);
+    thread_current()->fd_table[fd] = NULL;
+}
 
 void syscall_handler(struct intr_frame *f) {
     // 시스템 콜 번호를 RAX 레지스터로부터 읽어옵니다.
@@ -146,6 +164,8 @@ void syscall_handler(struct intr_frame *f) {
         case SYS_FORK:
             break;
         case SYS_EXEC:
+            check_address(f->R.rdi);
+            f->R.rax = exec(f->R.rdi);
             break;
         case SYS_WAIT:
             break;
@@ -162,16 +182,21 @@ void syscall_handler(struct intr_frame *f) {
             f->R.rax = open(f->R.rdi);
             break;
         case SYS_FILESIZE:
+            f->R.rax = filesize(f->R.rdi);
             break;
         case SYS_READ:
             break;
         case SYS_WRITE:
             f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
-            // printf("여기로 튀나?\n");
+            break;
+        case SYS_SEEK:
+            seek(f->R.rdi, f->R.rsi);
             break;
         case SYS_TELL:
+            f->R.rax = tell(f->R.rdi);
             break;
         case SYS_CLOSE:
+            close(f->R.rdi);
             break;
 
         default:

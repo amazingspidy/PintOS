@@ -6,13 +6,13 @@
 #include <stdint.h>
 
 #include "threads/interrupt.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
 
 /* States in a thread's life cycle. */
-enum thread_status
-{
+enum thread_status {
     THREAD_RUNNING, /* Running thread. */
     THREAD_READY,   /* Not running but ready to run. */
     THREAD_BLOCKED, /* Waiting for an event to trigger. */
@@ -86,8 +86,7 @@ typedef int tid_t;
  * only because they are mutually exclusive: only a thread in the
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
-struct thread
-{
+struct thread {
     /* Owned by thread.c. */
     tid_t tid;                 /* Thread identifier. */
     enum thread_status status; /* Thread state. */
@@ -97,26 +96,17 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;     /* List element. */
     struct lock *waiting_lock; /* Lock that the thread is waiting on. */
-    struct list donation_list; /* List of threads that donated priority to this thread. */
+    struct list donation_list; /* List of threads that donated priority to this
+                                  thread. */
     struct list_elem donation_elem;
     int original_priority; /* Original priority of the thread. */
     int nice;              /* Nice value of the thread. */
     int recent_cpu;        /* Recent cpu value of the thread. */
 
-
-    bool terminated;  //종료유무
-    bool normal_termiated;  // 정상종료 status
-    struct list_elem child_elem;
-    struct list child_list;
-    struct thread *parent;
-
-    struct file **fdt; // file descriptor table
-    int next_fd;  //다음 fd값.
-
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint64_t *pml4; /* Page map level 4 */
-    
+
 #endif
 #ifdef VM
     /* Table for whole virtual memory owned by thread. */
@@ -126,6 +116,22 @@ struct thread
     /* Owned by thread.c. */
     struct intr_frame tf; /* Information for switching */
     unsigned magic;       /* Detects stack overflow. */
+
+    struct thread *parent;       /* Parent thread. */
+    struct list child_list;      /* List of child threads. */
+    struct list_elem child_elem; /* List element for child_list. */
+
+    int load_success; /* 자식 프로세스가 성공적으로 생성되었는지 여부 */
+    bool exit_called; /* 프로세스 종료 유무 */
+    int exit_status;  /* 정상적으로 종료되었는지 여부 */
+
+    struct semaphore load_sema; /*자식 프로세스가 load될 때까지
+                                   부모프로세스를 block시키기 위한 semaphore */
+    struct semaphore exit_sema; /*자식 프로세스가 exit될 때까지 부모
+                                      프로세스를 block시키기 위한 semaphore */
+    struct file **fd_table;     /* File descriptor table */
+    int next_fd_idx;            /* File descriptor index */
+    // struct file *exec_file;     /* Executable file */
 };
 
 /* If false (default), use round-robin scheduler.
@@ -162,7 +168,8 @@ int thread_get_load_avg(void);
 
 void do_iret(struct intr_frame *tf);
 bool cmp_priority(const struct list_elem *, const struct list_elem *, void *);
-bool cmp_wake_up_time(const struct list_elem *, const struct list_elem *, void *);
+bool cmp_wake_up_time(const struct list_elem *, const struct list_elem *,
+                      void *);
 void thread_switching(void);
 void print_ready_list(void);
 void print_sleep_list(void);

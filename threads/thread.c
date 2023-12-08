@@ -203,18 +203,23 @@ tid_t thread_create(const char *name, int priority, thread_func *function,
     t->tf.cs = SEL_KCSEG;
     t->tf.eflags = FLAG_IF;
 
-    //////// 추가//////////////
+    t->fd_table = palloc_get_page(PAL_ZERO);
+    t->next_fd_idx = 3;
+
+    /*for hierarchical*/
     t->parent = thread_current();
-    struct list child_list_of_parent = t->parent->child_list;
-    /*file descriptor*/
-    t->fdt = palloc_get_page(PAL_ZERO);
-    t->next_fd = 2;
-    // 주의! thread가 죽으면 palloc_free_page(t->fdt); 진행하기.
+    t->load_success = 0;  // 실패시 -1
+    t->exit_called = false;
+    t->exit_status = 0;
+    sema_init(&(t->load_sema), 1);
+    sema_init(&(t->exit_sema), 1);
+    list_push_back(&(thread_current()->child_list),
+                   &t->child_elem);  // 부모의 자식리스트에 현재스레드 추가
 
     /* 실행 대기 큐에 추가. */
     thread_unblock(t);
     thread_switching();
-
+    // printf("thread_name is = %s\n", name);
     return tid;
 }
 
@@ -566,9 +571,11 @@ static void init_thread(struct thread *t, const char *name, int priority) {
     t->waiting_lock = NULL;
     t->nice = 0;
     t->recent_cpu = 0;
-    ////////////////////////////////////////////// 수정사항./////////
+    t->wake_up_time = 0;
 
-    list_init(&t->child_list);
+    ///////위는 수정 금지///////
+
+    list_init(&t->child_list); /*자식리스트 초기화*/
 }
 
 /* 스케줄할 다음 스레드를 선택하고 반환합니다. 실행 대기 큐에서 스레드를
