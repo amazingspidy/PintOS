@@ -69,11 +69,7 @@ bool create(const char *file, unsigned initial_size) {
     if (file == NULL) exit(-1);
     lock_acquire(&filesys_lock);
     bool result = (filesys_create(file, initial_size));
-<<<<<<< HEAD
-    printf("파일생성 완료.");
-=======
     lock_release(&filesys_lock);
->>>>>>> 507a0a007d7adffa89b97f201f0d7e61df9ccadd
     return result;
 }
 
