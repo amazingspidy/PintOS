@@ -60,10 +60,13 @@ void exit(int status) {
     thread_exit();
 }
 
+
+/*성공적으로 진행된다면 어떤 것도 반환하지 않습니다. 
+만약 프로그램이 이 프로세스를 로드하지 못하거나 
+다른 이유로 돌리지 못하게 되면 exit state -1을 반환하며 프로세스가 종료됩니다.*/
 int exec(const char *file) {
-    tid_t exec_tid = process_create_initd(file);
-    return exec_tid;
-    // return -1;
+    if (process_exec((void *)file) < 0) exit(-1);
+
 }
 
 bool create(const char *file, unsigned initial_size) {
