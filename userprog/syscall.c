@@ -82,6 +82,16 @@ int write(int fd, void *buffer, unsigned size) {
     }
 }
 
+int open(const char *file) {
+    if (file == NULL) exit(-1);
+    struct file *f = filesys_open(file);
+    if (f == NULL) {
+        return -1;
+    }
+    thread_current()->fd_table[thread_current()->next_fd_idx] = f;
+    return thread_current()->next_fd_idx++;
+}
+
 void syscall_handler(struct intr_frame *f) {
     // 시스템 콜 번호를 RAX 레지스터로부터 읽어옵니다.
     // check_address(&f->rsp);
@@ -116,6 +126,8 @@ void syscall_handler(struct intr_frame *f) {
             f->R.rax = remove(f->R.rdi);
             break;
         case SYS_OPEN:
+            check_address(f->R.rdi);
+            f->R.rax = open(f->R.rdi);
             break;
         case SYS_FILESIZE:
             break;
@@ -123,7 +135,6 @@ void syscall_handler(struct intr_frame *f) {
             break;
         case SYS_WRITE:
             f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
-            break;
             break;
         case SYS_TELL:
             break;

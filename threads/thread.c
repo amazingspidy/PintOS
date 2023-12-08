@@ -203,6 +203,10 @@ tid_t thread_create(const char *name, int priority, thread_func *function,
     t->tf.cs = SEL_KCSEG;
     t->tf.eflags = FLAG_IF;
 
+    t->fd_table = palloc_get_page(PAL_ZERO);
+    t->next_fd_idx = 3;
+    // t->exec_file = NULL;
+
     /* 실행 대기 큐에 추가. */
     thread_unblock(t);
     thread_switching();
