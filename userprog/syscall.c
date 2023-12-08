@@ -45,6 +45,14 @@ void check_address(void *addr) {
     }
 }
 
+void get_argument(void *esp, int *arg, int count) {
+    int i;
+    for (i = 0; i < count; i++) {
+        check_address(esp + i * 8);
+        arg[i] = *(int *)(esp + i * 8);
+    }
+}
+
 void halt(void) { power_off(); }
 
 void exit(int status) {
@@ -62,6 +70,26 @@ bool remove(const char *file) {
     if (file == NULL) exit(-1);
     bool result = (filesys_remove(file));
     return result;
+}
+
+int write(int fd, void *buffer, unsigned size) {
+    check_address(buffer);
+    if (fd == 1) {
+        putbuf(buffer, size);
+        return size;
+    } else {
+        return -1;
+    }
+}
+
+int open(const char *file) {
+    if (file == NULL) exit(-1);
+    struct file *f = filesys_open(file);
+    if (f == NULL) {
+        return -1;
+    }
+    thread_current()->fd_table[thread_current()->next_fd_idx] = f;
+    return thread_current()->next_fd_idx++;
 }
 
 void syscall_handler(struct intr_frame *f) {
@@ -98,12 +126,15 @@ void syscall_handler(struct intr_frame *f) {
             f->R.rax = remove(f->R.rdi);
             break;
         case SYS_OPEN:
+            check_address(f->R.rdi);
+            f->R.rax = open(f->R.rdi);
             break;
         case SYS_FILESIZE:
             break;
         case SYS_READ:
             break;
         case SYS_WRITE:
+            f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
             break;
         case SYS_TELL:
             break;
@@ -116,9 +147,9 @@ void syscall_handler(struct intr_frame *f) {
     }
 
     // 시스템 콜 처리 결과를 RAX 레지스터에 저장
-    f->R.rax = syscall_result;
+    // f->R.rax = syscall_result;
 
     // 시스템 콜이 종료된 후의 동작을 수행할 수 있습니다.
     // 예를 들어, 스레드를 종료시키는 대신 다른 작업을 수행할 수 있습니다.
-    thread_exit();
+    // thread_exit();
 }
