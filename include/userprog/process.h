@@ -1,7 +1,11 @@
 #ifndef USERPROG_PROCESS_H
 #define USERPROG_PROCESS_H
 
+#include "threads/synch.h"
 #include "threads/thread.h"
+
+/* File descriptor. */
+struct lock filesys_lock;
 
 tid_t process_create_initd(const char *file_name);
 tid_t process_fork(const char *name, struct intr_frame *if_);
