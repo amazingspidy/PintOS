@@ -12,8 +12,8 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "userprog/gdt.h"
+#include "userprog/process.h"
 #include "userprog/syscall.h"
-
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
 struct file *process_get_file(int fd);
@@ -63,6 +63,14 @@ void halt(void) { power_off(); }
 void exit(int status) {
     printf("%s: exit(%d)\n", thread_current()->name, status);
     thread_exit();
+}
+
+/*성공적으로 진행된다면 어떤 것도 반환하지 않습니다.
+만약 프로그램이 이 프로세스를 로드하지 못하거나
+다른 이유로 돌리지 못하게 되면 exit state -1을 반환하며 프로세스가 종료됩니다.*/
+int exec(const char *file) {
+    if (file == NULL) exit(-1);
+    if (process_exec((void *)file) < 0) exit(-1);
 }
 
 bool create(const char *file, unsigned initial_size) {
@@ -185,13 +193,9 @@ struct file *process_get_file(int fd) {
 
 void syscall_handler(struct intr_frame *f) {
     // 시스템 콜 번호를 RAX 레지스터로부터 읽어옵니다.
-    // check_address(&f->rsp);
-    // check_address(&f->rsp);
 
     int syscall_number = f->R.rax;
 
-    // 시스템 콜 결과를 저장할 변수
-    int syscall_result = -1;
     unsigned initial_size;
     const char *file;
     // 시스템 콜 번호에 따라 적절한 처리 수행
@@ -205,6 +209,8 @@ void syscall_handler(struct intr_frame *f) {
         case SYS_FORK:
             break;
         case SYS_EXEC:
+            check_address(f->R.rdi);
+            f->R.rax = exec(f->R.rdi);
             break;
         case SYS_WAIT:
             break;
