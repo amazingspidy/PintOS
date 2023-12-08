@@ -176,6 +176,8 @@ int process_exec(void *f_name) {
         arg_list[count++] = arg;
     }
 
+    arg_list[count] = NULL;
+
     /* 그리고 바이너리를 로드합니다. */
     success = load(file_name, &_if);
 
@@ -254,7 +256,34 @@ void process_exit(void) {
      * TODO: 프로세스 종료 메시지 구현 (project2/process_termination.html 참조).
      * TODO: 프로세스 리소스 정리를 여기에서 구현하는 것이 좋습니다. */
 
+    // printf("%s: exit(%d)\n", curr->name, curr->exit_status);
+
     process_cleanup();
+}
+
+struct thread *get_child_process(int pid) {
+    struct thread *curr = thread_current();
+    struct list_elem *e;
+
+    for (e = list_begin(&curr->child_list); e != list_end(&curr->child_list);
+         e = list_next(e)) {
+        struct thread *t = list_entry(e, struct thread, child_elem);
+        if (pid == t->tid) {
+            return t;
+        }
+    }
+    return NULL;
+}
+
+void remove_child_process(struct thread *cp) {
+    list_remove(&cp->child_elem);
+    palloc_free_page(cp);
+}
+
+static void start_process(void *f_name) {
+    process_init();
+    process_exec(f_name);
+    NOT_REACHED();
 }
 
 /* 현재 프로세스의 리소스를 해제합니다. */
