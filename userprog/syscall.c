@@ -45,6 +45,39 @@ void check_address(void *addr) {
     }
 }
 
+struct thread *get_child_process(int tid) {
+    /* 자식 리스트를 검색하여 프로세스 디스크립터의 주소 리턴 */
+    struct list *cur_child_list = &thread_current()->child_list;
+    struct list_elem *child;
+    struct thread *t;
+    for (child = list_begin(cur_child_list);
+         child != list_end(cur_child_list);) {
+        t = list_entry(child, struct thread, child_elem);
+        if (t->tid == tid) {
+            return t;
+        }
+        child = list_next(child);
+    }
+    return NULL;
+}
+
+void remove_child_process(struct thread *cp) {
+    /*프로세스 디스크립터를 자식 리스트에서 제거 후 메모리 해제*/
+    struct list *cur_child_list = &thread_current()->child_list;
+    struct list_elem *child;
+    struct thread *t;
+    for (child = list_begin(cur_child_list);
+         child != list_end(cur_child_list);) {
+        t = list_entry(child, struct thread, child_elem);
+        if (t == cp) {
+            list_remove(child);
+            palloc_free_page(t);  // 이게 맞는지 모르겠따.
+        }
+        child = list_next(child);
+    }
+    // 메모리해제는 어떻게해야하노??
+}
+
 void halt(void) { power_off(); }
 
 void exit(int status) {
@@ -64,15 +97,42 @@ bool remove(const char *file) {
     return result;
 }
 
+int write(int fd, void *buffer, unsigned size) {
+    check_address(buffer);
+    if (fd == 1) {
+        putbuf(buffer, size);
+        return size;
+    } else {
+        return -1;
+    }
+}
+
+// for open syscall!
+int process_add_file(struct file *f) {
+    struct thread *cur = thread_current();
+    struct file **cur_fdt = cur->fdt;
+    int file_descriptor = cur->next_fd;
+    cur_fdt[file_descriptor] = f;
+    cur->next_fd++;
+
+    return file_descriptor;
+}
+int open(const char *file) {
+    if (file == NULL) exit(-1);
+    struct file *open_file = filesys_open(file);
+    if (open_file == NULL) {
+        return -1;
+    }
+    int fd = process_add_file(open_file);
+    return fd;
+}
+
+
 void syscall_handler(struct intr_frame *f) {
     // 시스템 콜 번호를 RAX 레지스터로부터 읽어옵니다.
-    // check_address(&f->rsp);
-    // check_address(&f->rsp);
 
     int syscall_number = f->R.rax;
 
-    // 시스템 콜 결과를 저장할 변수
-    int syscall_result = -1;
     unsigned initial_size;
     const char *file;
     // 시스템 콜 번호에 따라 적절한 처리 수행
@@ -98,12 +158,16 @@ void syscall_handler(struct intr_frame *f) {
             f->R.rax = remove(f->R.rdi);
             break;
         case SYS_OPEN:
+            check_address(f->R.rdi);
+            f->R.rax = open(f->R.rdi);
             break;
         case SYS_FILESIZE:
             break;
         case SYS_READ:
             break;
         case SYS_WRITE:
+            f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
+            // printf("여기로 튀나?\n");
             break;
         case SYS_TELL:
             break;
@@ -116,9 +180,9 @@ void syscall_handler(struct intr_frame *f) {
     }
 
     // 시스템 콜 처리 결과를 RAX 레지스터에 저장
-    f->R.rax = syscall_result;
+    // f->R.rax = syscall_result;
 
     // 시스템 콜이 종료된 후의 동작을 수행할 수 있습니다.
     // 예를 들어, 스레드를 종료시키는 대신 다른 작업을 수행할 수 있습니다.
-    thread_exit();
+    // thread_exit();
 }

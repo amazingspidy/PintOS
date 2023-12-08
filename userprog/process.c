@@ -184,8 +184,8 @@ int process_exec(void *f_name) {
     argument_stack(arg_list, count, &_if.rsp);
     _if.R.rdi = count;
     _if.R.rsi = (uint64_t)_if.rsp + 8;  // 이게맞나?
-	
-    //hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+
+    // hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
     /* 로드에 실패하면 종료합니다. */
     palloc_free_page(file_name);
     if (!success) {
@@ -253,7 +253,8 @@ void process_exit(void) {
     /* TODO: 여기에 코드가 들어갑니다.
      * TODO: 프로세스 종료 메시지 구현 (project2/process_termination.html 참조).
      * TODO: 프로세스 리소스 정리를 여기에서 구현하는 것이 좋습니다. */
-
+    // thread가 죽으면 palloc_free_page(t->fdt); 진행하기.
+    palloc_free_page(curr->fdt);
     process_cleanup();
 }
 
@@ -439,7 +440,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
         }
     }
 
-    /* 스택 설정 */
+    /* 스택 초기화 */
     if (!setup_stack(if_)) goto done;
 
     /* 시작 주소 설정 */
@@ -447,8 +448,6 @@ static bool load(const char *file_name, struct intr_frame *if_) {
 
     /* TODO: 여기에 코드 추가.
      * TODO: 인자 전달 구현 (project2/argument_passing.html 참조). */
-    // hex_dump((uintptr_t)&if_->rip, (uintptr_t)&if_->rip, USER_STACK -
-    // (uintptr_t)&if_->rip, true);
 
     success = true;
 

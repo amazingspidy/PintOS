@@ -102,9 +102,21 @@ struct thread
     int original_priority; /* Original priority of the thread. */
     int nice;              /* Nice value of the thread. */
     int recent_cpu;        /* Recent cpu value of the thread. */
+
+
+    bool terminated;  //종료유무
+    bool normal_termiated;  // 정상종료 status
+    struct list_elem child_elem;
+    struct list child_list;
+    struct thread *parent;
+
+    struct file **fdt; // file descriptor table
+    int next_fd;  //다음 fd값.
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint64_t *pml4; /* Page map level 4 */
+    
 #endif
 #ifdef VM
     /* Table for whole virtual memory owned by thread. */
