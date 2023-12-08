@@ -131,7 +131,7 @@ struct thread {
                                       프로세스를 block시키기 위한 semaphore */
     struct file **fd_table;     /* File descriptor table */
     int next_fd_idx;            /* File descriptor index */
-    // struct file *exec_file;     /* Executable file */
+    struct file *exec_file;     /* Executable file */
 };
 
 /* If false (default), use round-robin scheduler.

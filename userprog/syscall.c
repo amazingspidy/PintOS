@@ -3,16 +3,20 @@
 #include <stdio.h>
 #include <syscall-nr.h>
 
+#include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "intrinsic.h"
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/loader.h"
+#include "threads/synch.h"
 #include "threads/thread.h"
 #include "userprog/gdt.h"
 #include "userprog/process.h"
+#include "userprog/syscall.h"
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
+struct file *process_get_file(int fd);
 
 /* 시스템 콜.
  *
@@ -28,6 +32,7 @@ void syscall_handler(struct intr_frame *);
 #define MSR_SYSCALL_MASK 0xc0000084 /* eflags에 대한 마스크 */
 
 void syscall_init(void) {
+    lock_init(&filesys_lock);
     write_msr(MSR_STAR,
               ((uint64_t)SEL_UCSEG - 0x10) << 48 | ((uint64_t)SEL_KCSEG) << 32);
     write_msr(MSR_LSTAR, (uint64_t)syscall_entry);
@@ -60,40 +65,47 @@ void exit(int status) {
     thread_exit();
 }
 
-
-/*성공적으로 진행된다면 어떤 것도 반환하지 않습니다. 
-만약 프로그램이 이 프로세스를 로드하지 못하거나 
+/*성공적으로 진행된다면 어떤 것도 반환하지 않습니다.
+만약 프로그램이 이 프로세스를 로드하지 못하거나
 다른 이유로 돌리지 못하게 되면 exit state -1을 반환하며 프로세스가 종료됩니다.*/
 int exec(const char *file) {
+    if (file == NULL) exit(-1);
     if (process_exec((void *)file) < 0) exit(-1);
-
 }
 
 bool create(const char *file, unsigned initial_size) {
     if (file == NULL) exit(-1);
+    lock_acquire(&filesys_lock);
     bool result = (filesys_create(file, initial_size));
+    lock_release(&filesys_lock);
     return result;
 }
 
 bool remove(const char *file) {
     if (file == NULL) exit(-1);
+    lock_acquire(&filesys_lock);
     bool result = (filesys_remove(file));
+    lock_release(&filesys_lock);
     return result;
 }
 
 int write(int fd, void *buffer, unsigned size) {
     check_address(buffer);
+    lock_acquire(&filesys_lock);
     if (fd == 1) {
         putbuf(buffer, size);
-        return size;
     } else {
-        return -1;
+        file_write(process_get_file(fd), buffer, size);
     }
+    lock_release(&filesys_lock);
+    return size;
 }
 
 int open(const char *file) {
     if (file == NULL) exit(-1);
+    lock_acquire(&filesys_lock);
     struct file *f = filesys_open(file);
+    lock_release(&filesys_lock);
     if (f == NULL) {
         return -1;
     }
@@ -101,40 +113,15 @@ int open(const char *file) {
     return thread_current()->next_fd_idx++;
 }
 
-struct file *process_get_file(int fd) {
-    /*파일 객체(struct file)를 검색하는 함수*/
-    struct thread *cur = thread_current();
-    struct file **cur_fdt = cur->fd_table;
-    if (cur_fdt[fd] == NULL) {
-        return NULL;
-    }
-    return cur_fdt[fd];
-}
-
 int filesize(int fd) {
-    struct file *cur_file = process_get_file(fd);
-    if (cur_file == NULL) {
+    if (fd < 0 || fd >= thread_current()->next_fd_idx) {
         return -1;
     }
-    return file_length(cur_file);
-}
-
-void seek(int fd, unsigned position) {
-    /*열린 파일의 위치(offset)를 이동하는 시스템 콜
-    Position : 현재 위치(offset)를 기준으로 이동할 거리*/
-    struct file *cur_file = process_get_file(fd);
-
-    file_seek(cur_file, position);
-}
-
-unsigned tell(int fd) {
-    /*열린 파일의 위치(offset)를 알려주는 시스템 콜
-    성공 시 파일의 위치(offset)를 반환, 실패 시 -1 반환*/
-    struct file *cur_file = process_get_file(fd);
-    if (cur_file == NULL) {
+    struct file *f = thread_current()->fd_table[fd];
+    if (f == NULL) {
         return -1;
     }
-    return file_tell(cur_file);
+    return file_length(f);
 }
 
 void close(int fd) {
@@ -147,6 +134,61 @@ void close(int fd) {
     }
     file_close(f);
     thread_current()->fd_table[fd] = NULL;
+}
+
+int read(int fd, void *buffer, unsigned size) {
+    check_address(buffer);
+    lock_acquire(&filesys_lock);
+    if (fd == 0) {
+        unsigned i;
+        for (i = 0; i < size; i++) {
+            ((char *)buffer)[i] = input_getc();
+        }
+    } else {
+        file_read(process_get_file(fd), buffer, size);
+    }
+    lock_release(&filesys_lock);
+    return size;
+}
+
+void seek(int fd, unsigned position) {
+    /* 열린 파일의 위치(offset)를 이동하는 시스템 콜
+    Position : 현재 위치(offset)를 기준으로 이동할 거리 */
+    struct file *cur_file = process_get_file(fd);
+
+    if (cur_file == NULL) {
+        return;
+    }
+
+    file_seek(cur_file, position);
+}
+
+unsigned tell(int fd) {
+    /* 열린 파일의 위치(offset)를 알려주는 시스템 콜
+    성공 시 파일의 위치(offset)를 반환, 실패 시 -1 반환 */
+    if (fd < 0 || fd >= thread_current()->next_fd_idx) {
+        return -1;
+    }
+
+    struct file *cur_file = process_get_file(fd);
+    if (cur_file == NULL) {
+        return -1;
+    }
+    return file_tell(cur_file);
+}
+
+struct file *process_get_file(int fd) {
+    /* 파일 객체(struct file)를 검색하는 함수 */
+    struct thread *cur = thread_current();
+    if (fd < 0 || fd >= cur->next_fd_idx) {
+        return NULL;
+    }
+
+    struct file **cur_fdt = cur->fd_table;
+    if (cur_fdt[fd] == NULL) {
+        return NULL;
+    }
+    return cur_fdt[fd];
 }
 
 void syscall_handler(struct intr_frame *f) {
@@ -188,6 +230,7 @@ void syscall_handler(struct intr_frame *f) {
             f->R.rax = filesize(f->R.rdi);
             break;
         case SYS_READ:
+            f->R.rax = read(f->R.rdi, f->R.rsi, f->R.rdx);
             break;
         case SYS_WRITE:
             f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);

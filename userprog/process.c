@@ -187,7 +187,12 @@ int process_exec(void *f_name) {
     /* 그리고 바이너리를 로드합니다. */
 
     success = load(safe_name, &_if);
+    if (!success) {
+        // exec-missing test case에서 이렇게 바꿔야 처리가 가능함.
 
+        palloc_free_page(safe_name);
+        return -1;
+    }
     // 스택에 인자 넣기
 
     argument_stack(arg_list, count, &_if.rsp);
