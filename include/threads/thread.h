@@ -102,9 +102,11 @@ struct thread {
     int original_priority; /* Original priority of the thread. */
     int nice;              /* Nice value of the thread. */
     int recent_cpu;        /* Recent cpu value of the thread. */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint64_t *pml4; /* Page map level 4 */
+
 #endif
 #ifdef VM
     /* Table for whole virtual memory owned by thread. */
@@ -119,9 +121,9 @@ struct thread {
     struct list child_list;      /* List of child threads. */
     struct list_elem child_elem; /* List element for child_list. */
 
+    int load_success; /* 자식 프로세스가 성공적으로 생성되었는지 여부 */
     bool exit_called; /* 프로세스 종료 유무 */
     int exit_status;  /* 정상적으로 종료되었는지 여부 */
-    int load_success; /* 자식 프로세스가 성공적으로 생성되었는지 여부 */
 
     struct semaphore load_sema; /* 자식 프로세스가 load될 때까지
                                    부모프로세스를 block시키기 위한 semaphore */

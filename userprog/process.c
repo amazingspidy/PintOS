@@ -54,7 +54,9 @@ tid_t process_create_initd(const char *file_name) {
 
     /* FILE_NAME을 실행하기 위해 새 스레드를 생성합니다. */
     // 첫번째 인자를 thread_create에 넘기기.
+
     tid = thread_create(file_name, PRI_DEFAULT, initd, fn_copy);
+    // sema_down(&(thread_current()->load_sema));
     if (tid == TID_ERROR) palloc_free_page(fn_copy);
     return tid;
 }
@@ -151,13 +153,17 @@ error:
 /* f_name을 실행하는 컨텍스트로 현재 실행 컨텍스트를 전환합니다.
  * 실패하면 -1을 반환합니다. */
 int process_exec(void *f_name) {
-    char *file_name = f_name;
+    // 현재 스레드의 스택프레임이 아니라, 커널에 안전하게 보관해야
+    // 아래 process_cleanup()에서 사라지지 않습니다. 참고!!!!
+    char *safe_name = (char *)palloc_get_page(PAL_ZERO);
+    strlcpy(safe_name, (char *)f_name, strlen(f_name) + 1);
     bool success;
-
+    char *cur_name = thread_current()->name;
     /* 우리는 현재 스레드 구조체에 있는 intr_frame을 사용할 수 없습니다.
      * 이는 현재 스레드가 재스케줄될 때 실행 정보를 멤버에 저장하기 때문입니다.
      */
     struct intr_frame _if;
+
     _if.ds = _if.es = _if.ss = SEL_UDSEG;
     _if.cs = SEL_UCSEG;
     _if.eflags = FLAG_IF | FLAG_MBS;
@@ -170,7 +176,7 @@ int process_exec(void *f_name) {
     int count = 0;        // argument 개수
     char *arg;
     char *rest;  // 분리된 문자열 중 남는 부분의 시작주소
-    arg = strtok_r(file_name, " ", &rest);
+    arg = strtok_r(safe_name, " ", &rest);
     arg_list[count++] = arg;
     while ((arg = strtok_r(NULL, " ", &rest))) {
         arg_list[count++] = arg;
@@ -179,8 +185,14 @@ int process_exec(void *f_name) {
     arg_list[count] = NULL;
 
     /* 그리고 바이너리를 로드합니다. */
-    success = load(file_name, &_if);
 
+    success = load(safe_name, &_if);
+    if (!success) {
+        // exec-missing test case에서 이렇게 바꿔야 처리가 가능함.
+
+        palloc_free_page(safe_name);
+        return -1;
+    }
     // 스택에 인자 넣기
 
     argument_stack(arg_list, count, &_if.rsp);
@@ -189,7 +201,7 @@ int process_exec(void *f_name) {
 
     // hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
     /* 로드에 실패하면 종료합니다. */
-    palloc_free_page(file_name);
+    palloc_free_page(safe_name);
     if (!success) {
         return -1;
     }
@@ -246,7 +258,17 @@ int process_wait(tid_t child_tid UNUSED) {
 
     for (int i = 0; i < 100000000; i++) {
     }
+    // while (1)
+    //     ;
     return -1;
+}
+
+void process_close_file(int fd) {
+    /*파일닫기*/
+    struct thread *cur = thread_current();
+    struct file **cur_fdt = cur->fd_table;
+    file_close(cur_fdt[fd]);
+    cur_fdt[fd] = NULL;
 }
 
 /* 프로세스를 종료합니다. 이 함수는 thread_exit()에 의해 호출됩니다. */
@@ -255,8 +277,10 @@ void process_exit(void) {
     /* TODO: 여기에 코드가 들어갑니다.
      * TODO: 프로세스 종료 메시지 구현 (project2/process_termination.html 참조).
      * TODO: 프로세스 리소스 정리를 여기에서 구현하는 것이 좋습니다. */
-
-    // printf("%s: exit(%d)\n", curr->name, curr->exit_status);
+    // int max_fd = curr->next_fd_idx;
+    // for (int i = 0; i <= max_fd; i++) {
+    //     process_close_file(i);
+    // }
 
     process_cleanup();
 }
@@ -468,7 +492,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
         }
     }
 
-    /* 스택 설정 */
+    /* 스택 초기화 */
     if (!setup_stack(if_)) goto done;
 
     /* 시작 주소 설정 */
@@ -476,8 +500,6 @@ static bool load(const char *file_name, struct intr_frame *if_) {
 
     /* TODO: 여기에 코드 추가.
      * TODO: 인자 전달 구현 (project2/argument_passing.html 참조). */
-    // hex_dump((uintptr_t)&if_->rip, (uintptr_t)&if_->rip, USER_STACK -
-    // (uintptr_t)&if_->rip, true);
 
     success = true;
 
