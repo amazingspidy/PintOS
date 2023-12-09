@@ -205,7 +205,9 @@ tid_t thread_create(const char *name, int priority, thread_func *function,
 
     t->fd_table = palloc_get_page(PAL_ZERO);
     t->next_fd_idx = 3;
-    // t->exec_file = NULL;
+    t->exec_file = NULL;
+    sema_init(&t->load_sema, 0);
+    sema_init(&t->exit_sema, 0);
 
     /* 실행 대기 큐에 추가. */
     thread_unblock(t);
@@ -386,6 +388,8 @@ void thread_wakeup(int64_t ticks) {
 }
 
 void thread_switching(void) {
+    if (intr_context()) return;
+
     if (list_empty(&ready_list)) return;
     int now_priority = thread_get_priority();
     struct list_elem *e = list_front(&ready_list);
