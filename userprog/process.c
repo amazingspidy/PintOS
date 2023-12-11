@@ -89,6 +89,9 @@ tid_t process_fork(const char *name, struct intr_frame *if_ UNUSED) {
     if (tid == TID_ERROR) {
         return TID_ERROR;
     }
+    struct thread *child = get_child_process(tid);
+    child->parent = parent;
+    list_push_back(&parent->child_list, &child->child_elem);
     sema_down(&(parent->load_sema));
 }
 
@@ -297,13 +300,13 @@ int process_wait(tid_t child_tid) {
     }
 
     if (child->exit_called == true) {
-        remove_child_process(child);
+        // remove_child_process(child);
         return child->exit_status;
     }
     // wait...
 
     sema_down(&curr->exit_sema);
-    remove_child_process(child);
+    // remove_child_process(child);
 
     return child->exit_status;
 }
