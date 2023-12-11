@@ -213,6 +213,7 @@ tid_t thread_create(const char *name, int priority, thread_func *function,
     t->exit_status = 0;
     sema_init(&(t->load_sema), 0);
     sema_init(&(t->exit_sema), 0);
+    sema_init(&(t->wait_sema), 0);
     list_push_back(&(thread_current()->child_list),
                    &t->child_elem);  // 부모의 자식리스트에 현재스레드 추가
 
