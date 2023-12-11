@@ -251,16 +251,25 @@ void argument_stack(char **parse, int count, void **rsp) {
  * process_wait()가 성공적으로 호출되었다면, 기다리지 않고 즉시 -1을 반환합니다.
  *
  * 이 함수는 문제 2-2에서 구현될 것입니다. 지금은 아무 것도 하지 않습니다. */
-int process_wait(tid_t child_tid UNUSED) {
-    /* XXX: 힌트) Pintos가 process_wait(initd)일 때 종료하는 경우, 여기에
-     * XXX:       무한 루프를 추가하는 것이 좋습니다.
-     * XXX:       process_wait을 구현하기 전까지는. */
+int process_wait(tid_t child_tid) {
+    struct thread *curr = thread_current();
+    struct thread *child = get_child_process(child_tid);
 
-    for (int i = 0; i < 100000000; i++) {
+    // 해당하는 tid의 자식 프로세스가 없는 경우 -1 return
+    if (child == NULL) {
+        return -1;
     }
-    // while (1)
-    //     ;
-    return -1;
+
+    if (child->exit_called == true) {
+        remove_child_process(child);
+        return child->exit_status;
+    }
+    // wait...
+
+    sema_down(&curr->exit_sema);
+    remove_child_process(child);
+
+    return child->exit_status;
 }
 
 void process_close_file(int fd) {
@@ -277,10 +286,12 @@ void process_exit(void) {
     /* TODO: 여기에 코드가 들어갑니다.
      * TODO: 프로세스 종료 메시지 구현 (project2/process_termination.html 참조).
      * TODO: 프로세스 리소스 정리를 여기에서 구현하는 것이 좋습니다. */
-    // int max_fd = curr->next_fd_idx;
-    // for (int i = 0; i <= max_fd; i++) {
-    //     process_close_file(i);
-    // }
+
+    if (curr->parent != NULL) {
+        curr->exit_called = true;
+        sema_up(&curr->parent->exit_sema);
+    }
+    curr->exit_status = curr->tid;
 
     process_cleanup();
 }
