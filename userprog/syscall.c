@@ -67,7 +67,7 @@ void exit(int status) {
 }
 
 pid_t fork(const char *thread_name, struct intr_frame *if_) {
-    process_fork(thread_name, if_);
+    return process_fork(thread_name, if_);
 }
 
 /*성공적으로 진행된다면 어떤 것도 반환하지 않습니다.

@@ -19,6 +19,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/gdt.h"
+#include "userprog/syscall.h"
 #include "userprog/tss.h"
 #ifdef VM
 #include "vm/vm.h"
@@ -51,7 +52,7 @@ tid_t process_create_initd(const char *file_name) {
     char *next_ptr;
 
     arg1 = strtok_r(file_name, " ", &next_ptr);
-
+    struct thread *test = thread_current();
     /* FILE_NAME을 실행하기 위해 새 스레드를 생성합니다. */
 
     tid = thread_create(file_name, PRI_DEFAULT, initd, fn_copy);
@@ -71,20 +72,26 @@ static void initd(void *f_name) {
     NOT_REACHED();
 }
 
-
 /* `name`으로 현재 프로세스를 복제합니다. 새 프로세스의 스레드 ID를 반환하거나,
  * 스레드를 생성할 수 없는 경우 TID_ERROR를 반환합니다. */
 tid_t process_fork(const char *name, struct intr_frame *if_ UNUSED) {
     /* 현재 스레드를 새 스레드로 복제합니다. */
-    
+
     struct thread *parent = thread_current();
     // 같이 태워서 보내주기.
-    
-    tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, &if_);
+    struct intr_frame *f;
+    memcpy(&f, if_, sizeof(struct intr_frame));
+
+    tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, &f);
     if (tid == TID_ERROR) {
         return TID_ERROR;
     }
-    sema_down(&(parent->load_sema));
+    struct thread *child = get_child_process(tid);
+    // child->parent = parent;
+    // list_push_back(&parent->child_list, &child->child_elem);
+    sema_down(&(child->load_sema));
+
+    return tid;  // 자식프로세스 tid반환
 }
 
 #ifndef VM
@@ -99,7 +106,7 @@ static bool duplicate_pte(uint64_t *pte, void *va, void *aux) {
 
     /* 1. TODO: 부모 페이지가 커널 페이지인 경우 즉시 반환합니다. */
     if (is_kernel_vaddr(va)) {
-        return;
+        return true;
     }
 
     /* 2. 부모의 페이지 맵 레벨 4에서 VA를 해석합니다. */
@@ -107,7 +114,7 @@ static bool duplicate_pte(uint64_t *pte, void *va, void *aux) {
 
     /* 3. TODO: 자식을 위한 새 PAL_USER 페이지를 할당하고
      *    TODO: 결과를 NEWPAGE로 설정합니다. */
-    newpage = palloc_get_page(PAL_USER);
+    newpage = palloc_get_page(PAL_USER | PAL_ZERO);
     if (newpage == NULL) {
         return false;
     }
@@ -116,7 +123,7 @@ static bool duplicate_pte(uint64_t *pte, void *va, void *aux) {
      *    TODO: 부모 페이지가 쓰기 가능한지 확인하고 (WRITABLE에 결과를 설정) */
 
     memcpy(newpage, parent_page, PGSIZE);
-    // uint64_t *pte = pml4e_walk(parent->pml4, va, 0);
+    pte = pml4e_walk(parent->pml4, va, 0);
     writable = is_writable(pte);
     /* 5. 주소 VA에 WRITABLE 권한으로 자식의 페이지 테이블에 새 페이지를
      * 추가합니다. */
@@ -136,13 +143,15 @@ static void __do_fork(void *aux) {
     struct intr_frame if_;
     struct thread *parent = thread_current()->parent;
     struct thread *current = thread_current();
+    char *test_parent_name = parent->name;
+    char *test_child_name = current->name;
     /* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-    
+
     bool succ = true;
 
     /* 1. CPU 컨텍스트를 로컬 스택에 읽습니다. */
     memcpy(&if_, parent_if, sizeof(struct intr_frame));
-
+    if_.R.rax = 0;
     /* 2. PT 복제 */
     current->pml4 = pml4_create();
     if (current->pml4 == NULL) goto error;
@@ -161,24 +170,27 @@ static void __do_fork(void *aux) {
     struct file **current_fdt = current->fd_table;
     struct file **parent_fdt = parent->fd_table;
     struct file *new_file;
-    for (int i = 2; i < 64; i++) {
+    for (int i = 0; i < 64; i++) {
         if (parent_fdt[i] != NULL) {
             new_file = file_duplicate(parent_fdt[i]);
             current_fdt[i] = new_file;
         }
     }
-
+    current->next_fd_idx = parent->next_fd_idx;
     /*
     * TODO:       부모는 이 함수가 부모의 자원을 성공적으로 복제할 때까지
 
     * fork()에서 반환해서는 안 됩니다.*/
-    sema_up(&(current->parent->load_sema));
+    sema_up(&(current->load_sema));
     process_init();
 
     /* 마지막으로, 새로 생성된 프로세스로 전환합니다. */
-    if (succ) do_iret(&if_);
+    if (succ) {
+        do_iret(&if_);
+    }
 error:
-    thread_exit();
+    sema_up(&(current->load_sema));
+    exit(TID_ERROR);
 }
 
 /* f_name을 실행하는 컨텍스트로 현재 실행 컨텍스트를 전환합니다.
@@ -290,15 +302,18 @@ int process_wait(tid_t child_tid) {
     if (child == NULL) {
         return -1;
     }
+    // sema_down(&curr->parent->exit_sema);
 
-    if (child->exit_called == true) {
-        remove_child_process(child);
-        return child->exit_status;
-    }
+    // if (child->exit_called == true) {
+    //     remove_child_process(child);
+    //     return child->exit_status;
+    // }
     // wait...
 
-    sema_down(&curr->exit_sema);
-    remove_child_process(child);
+    sema_down(&child->wait_sema);
+    list_remove(&child->child_elem);
+    sema_up(&child->exit_sema);
+    //  remove_child_process(child);
 
     return child->exit_status;
 }
@@ -317,14 +332,16 @@ void process_exit(void) {
     /* TODO: 여기에 코드가 들어갑니다.
      * TODO: 프로세스 종료 메시지 구현 (project2/process_termination.html 참조).
      * TODO: 프로세스 리소스 정리를 여기에서 구현하는 것이 좋습니다. */
-
-    if (curr->parent != NULL) {
-        curr->exit_called = true;
-        sema_up(&curr->parent->exit_sema);
+    for (int i = 2; i < 64; i++) {
+        close(i);
     }
-    curr->exit_status = curr->tid;
-
+    palloc_free_page(curr->fd_table);
+    file_close(curr->exec_file);
+    // curr->exit_status = curr->tid;
+    // curr->parent->exit_status = curr->tid;
     process_cleanup();
+    sema_up(&curr->wait_sema);
+    sema_down(&curr->exit_sema);
 }
 
 struct thread *get_child_process(int pid) {
@@ -533,7 +550,8 @@ static bool load(const char *file_name, struct intr_frame *if_) {
                 break;
         }
     }
-
+    t->exec_file = file;
+    file_deny_write(file);
     /* 스택 초기화 */
     if (!setup_stack(if_)) goto done;
 
@@ -547,7 +565,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
 
 done:
     /* We arrive here whether the load is successful or not. */
-    file_close(file);
+    // file_close(file);
     return success;
 }
 
