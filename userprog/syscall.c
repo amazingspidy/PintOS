@@ -17,7 +17,7 @@
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
 struct file *process_get_file(int fd);
-
+typedef int pid_t;
 /* 시스템 콜.
  *
  * 이전에는 시스템 콜 서비스가 인터럽트 핸들러에 의해 처리되었습니다
@@ -64,6 +64,8 @@ void exit(int status) {
     printf("%s: exit(%d)\n", thread_current()->name, status);
     thread_exit();
 }
+
+pid_t fork(const char *thread_name) { process_create_initd(thread_name); }
 
 /*성공적으로 진행된다면 어떤 것도 반환하지 않습니다.
 만약 프로그램이 이 프로세스를 로드하지 못하거나
@@ -207,6 +209,8 @@ void syscall_handler(struct intr_frame *f) {
             exit((int)f->R.rdi);
             break;
         case SYS_FORK:
+            check_address(f->R.rdi);
+            f->R.rax = fork(f->R.rdi);
             break;
         case SYS_EXEC:
             check_address(f->R.rdi);
