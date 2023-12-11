@@ -56,11 +56,9 @@ __attribute__((always_inline)) static __inline int64_t syscall(
     (syscall(((uint64_t)NUMBER), ((uint64_t)ARG0), ((uint64_t)ARG1), \
              ((uint64_t)ARG2), ((uint64_t)ARG3), ((uint64_t)ARG4), 0))
 
-
-
 void halt(void) {
-    syscall0 (SYS_HALT);
-    NOT_REACHED ();
+    syscall0(SYS_HALT);
+    NOT_REACHED();
 }
 
 void exit(int status) {
