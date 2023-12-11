@@ -55,7 +55,6 @@ tid_t process_create_initd(const char *file_name) {
     /* FILE_NAME을 실행하기 위해 새 스레드를 생성합니다. */
 
     tid = thread_create(file_name, PRI_DEFAULT, initd, fn_copy);
-    // sema_down(&(thread_current()->load_sema));
     if (tid == TID_ERROR) palloc_free_page(fn_copy);
     return tid;
 }
@@ -72,20 +71,16 @@ static void initd(void *f_name) {
     NOT_REACHED();
 }
 
-struct fork_args {
-    struct intr_frame *if_;
-    struct thread *parent;
-};
+
 /* `name`으로 현재 프로세스를 복제합니다. 새 프로세스의 스레드 ID를 반환하거나,
  * 스레드를 생성할 수 없는 경우 TID_ERROR를 반환합니다. */
 tid_t process_fork(const char *name, struct intr_frame *if_ UNUSED) {
     /* 현재 스레드를 새 스레드로 복제합니다. */
-    struct fork_args args;
-    args.if_ = if_;
-    args.parent = thread_current();
-    // 같이 태워서 보내주기.
+    
     struct thread *parent = thread_current();
-    tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, &args);
+    // 같이 태워서 보내주기.
+    
+    tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, &if_);
     if (tid == TID_ERROR) {
         return TID_ERROR;
     }
@@ -137,12 +132,12 @@ static bool duplicate_pte(uint64_t *pte, void *va, void *aux) {
  * 힌트) parent->tf는 프로세스의 사용자 영역 컨텍스트를 유지하지 않습니다.
  *       즉, 이 함수에 process_fork의 두 번째 인수를 전달해야 합니다. */
 static void __do_fork(void *aux) {
-    struct fork_args *args = aux;
+    struct intr_frame *parent_if = aux;
     struct intr_frame if_;
-    struct thread *parent = args->parent;
+    struct thread *parent = thread_current()->parent;
     struct thread *current = thread_current();
     /* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-    struct intr_frame *parent_if = args->if_;
+    
     bool succ = true;
 
     /* 1. CPU 컨텍스트를 로컬 스택에 읽습니다. */
