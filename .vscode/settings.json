@@ -15,6 +15,7 @@
         "interrupt.h": "c",
         "intrinsic.h": "c",
         "flags.h": "c",
-        "palloc.h": "c"
+        "palloc.h": "c",
+        "directory.h": "c"
     }
 }
