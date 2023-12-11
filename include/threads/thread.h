@@ -129,6 +129,7 @@ struct thread {
                                    부모프로세스를 block시키기 위한 semaphore */
     struct semaphore exit_sema; /*  자식 프로세스가 exit될 때까지 부모
                                       프로세스를 block시키기 위한 semaphore */
+    struct semaphore wait_sema;
     struct file **fd_table;     /* File descriptor table */
     int next_fd_idx;            /* File descriptor index */
     struct file *exec_file;     /* Executable file */
