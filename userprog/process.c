@@ -79,10 +79,10 @@ tid_t process_fork(const char *name, struct intr_frame *if_ UNUSED) {
 
     struct thread *parent = thread_current();
     // 같이 태워서 보내주기.
-    struct intr_frame *f;
-    memcpy(&f, if_, sizeof(struct intr_frame));
+    struct intr_frame *f = malloc(sizeof(struct intr_frame));
+    memcpy(f, if_, sizeof(struct intr_frame));
 
-    tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, &f);
+    tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, f);
     if (tid == TID_ERROR) {
         return TID_ERROR;
     }
