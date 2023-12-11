@@ -65,7 +65,9 @@ void exit(int status) {
     thread_exit();
 }
 
-pid_t fork(const char *thread_name) { process_create_initd(thread_name); }
+pid_t fork(const char *thread_name, struct intr_frame *if_) {
+    process_fork(thread_name, if_);
+}
 
 /*성공적으로 진행된다면 어떤 것도 반환하지 않습니다.
 만약 프로그램이 이 프로세스를 로드하지 못하거나
@@ -210,7 +212,7 @@ void syscall_handler(struct intr_frame *f) {
             break;
         case SYS_FORK:
             check_address(f->R.rdi);
-            f->R.rax = fork(f->R.rdi);
+            f->R.rax = fork(f->R.rdi, f);
             break;
         case SYS_EXEC:
             check_address(f->R.rdi);
