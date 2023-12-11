@@ -17,7 +17,7 @@
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
 struct file *process_get_file(int fd);
-
+typedef int pid_t;
 /* 시스템 콜.
  *
  * 이전에는 시스템 콜 서비스가 인터럽트 핸들러에 의해 처리되었습니다
@@ -61,8 +61,13 @@ void get_argument(void *esp, int *arg, int count) {
 void halt(void) { power_off(); }
 
 void exit(int status) {
+    thread_current()->exit_status = status;
     printf("%s: exit(%d)\n", thread_current()->name, status);
     thread_exit();
+}
+
+pid_t fork(const char *thread_name, struct intr_frame *if_) {
+    process_fork(thread_name, if_);
 }
 
 /*성공적으로 진행된다면 어떤 것도 반환하지 않습니다.
@@ -191,6 +196,8 @@ struct file *process_get_file(int fd) {
     return cur_fdt[fd];
 }
 
+int wait(int pid) { return process_wait(pid); }
+
 void syscall_handler(struct intr_frame *f) {
     // 시스템 콜 번호를 RAX 레지스터로부터 읽어옵니다.
 
@@ -207,12 +214,16 @@ void syscall_handler(struct intr_frame *f) {
             exit((int)f->R.rdi);
             break;
         case SYS_FORK:
+            check_address(f->R.rdi);
+            f->R.rax = fork(f->R.rdi, f);
             break;
         case SYS_EXEC:
             check_address(f->R.rdi);
             f->R.rax = exec(f->R.rdi);
             break;
         case SYS_WAIT:
+            check_address(f->R.rdi);
+            f->R.rax = wait(f->R.rdi);
             break;
         case SYS_CREATE:
             check_address(f->R.rdi);

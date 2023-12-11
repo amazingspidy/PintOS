@@ -125,9 +125,9 @@ struct thread {
     bool exit_called; /* 프로세스 종료 유무 */
     int exit_status;  /* 정상적으로 종료되었는지 여부 */
 
-    struct semaphore load_sema; /*자식 프로세스가 load될 때까지
+    struct semaphore load_sema; /* 자식 프로세스가 load될 때까지
                                    부모프로세스를 block시키기 위한 semaphore */
-    struct semaphore exit_sema; /*자식 프로세스가 exit될 때까지 부모
+    struct semaphore exit_sema; /*  자식 프로세스가 exit될 때까지 부모
                                       프로세스를 block시키기 위한 semaphore */
     struct file **fd_table;     /* File descriptor table */
     int next_fd_idx;            /* File descriptor index */

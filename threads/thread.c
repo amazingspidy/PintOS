@@ -395,6 +395,8 @@ void thread_wakeup(int64_t ticks) {
 }
 
 void thread_switching(void) {
+    if (intr_context()) return;
+
     if (list_empty(&ready_list)) return;
     int now_priority = thread_get_priority();
     struct list_elem *e = list_front(&ready_list);
