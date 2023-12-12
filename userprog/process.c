@@ -78,17 +78,16 @@ tid_t process_fork(const char *name, struct intr_frame *if_ UNUSED) {
     /* 현재 스레드를 새 스레드로 복제합니다. */
 
     struct thread *parent = thread_current();
-    // 같이 태워서 보내주기.
-    struct intr_frame *f = malloc(sizeof(struct intr_frame));
-    memcpy(f, if_, sizeof(struct intr_frame));
 
-    tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, f);
+    // struct intr_frame *f = malloc(sizeof(struct intr_frame));
+    // memcpy(f, if_, sizeof(struct intr_frame)); /*이거 복제 안해줘도
+    // 되는데?*/
+    tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, if_);
     if (tid == TID_ERROR) {
         return TID_ERROR;
     }
+    // 각 자식들을 관리해야하기 때문에, child sema를 쓰는것이 합리적임.
     struct thread *child = get_child_process(tid);
-    // child->parent = parent;
-    // list_push_back(&parent->child_list, &child->child_elem);
     sema_down(&(child->load_sema));
 
     return tid;  // 자식프로세스 tid반환
@@ -106,7 +105,7 @@ static bool duplicate_pte(uint64_t *pte, void *va, void *aux) {
 
     /* 1. TODO: 부모 페이지가 커널 페이지인 경우 즉시 반환합니다. */
     if (is_kernel_vaddr(va)) {
-        return true;
+        return true;  // true아니면 절대로 안됨!
     }
 
     /* 2. 부모의 페이지 맵 레벨 4에서 VA를 해석합니다. */
@@ -170,7 +169,7 @@ static void __do_fork(void *aux) {
     struct file **current_fdt = current->fd_table;
     struct file **parent_fdt = parent->fd_table;
     struct file *new_file;
-    for (int i = 0; i < 64; i++) {
+    for (int i = 2; i < 64; i++) {
         if (parent_fdt[i] != NULL) {
             new_file = file_duplicate(parent_fdt[i]);
             current_fdt[i] = new_file;
@@ -182,7 +181,7 @@ static void __do_fork(void *aux) {
 
     * fork()에서 반환해서는 안 됩니다.*/
     sema_up(&(current->load_sema));
-    process_init();
+    process_init();  // 이함수는 왜 쓰이는건지 의문임 ㅋㅋ
 
     /* 마지막으로, 새로 생성된 프로세스로 전환합니다. */
     if (succ) {
@@ -190,7 +189,8 @@ static void __do_fork(void *aux) {
     }
 error:
     sema_up(&(current->load_sema));
-    exit(TID_ERROR);
+    // exit(TID_ERROR);
+    thread_exit();
 }
 
 /* f_name을 실행하는 컨텍스트로 현재 실행 컨텍스트를 전환합니다.
@@ -302,18 +302,10 @@ int process_wait(tid_t child_tid) {
     if (child == NULL) {
         return -1;
     }
-    // sema_down(&curr->parent->exit_sema);
-
-    // if (child->exit_called == true) {
-    //     remove_child_process(child);
-    //     return child->exit_status;
-    // }
-    // wait...
 
     sema_down(&child->wait_sema);
     list_remove(&child->child_elem);
     sema_up(&child->exit_sema);
-    //  remove_child_process(child);
 
     return child->exit_status;
 }
@@ -333,12 +325,10 @@ void process_exit(void) {
      * TODO: 프로세스 종료 메시지 구현 (project2/process_termination.html 참조).
      * TODO: 프로세스 리소스 정리를 여기에서 구현하는 것이 좋습니다. */
     for (int i = 2; i < 64; i++) {
-        close(i);
+        process_close_file(i);
     }
     palloc_free_page(curr->fd_table);
     file_close(curr->exec_file);
-    // curr->exit_status = curr->tid;
-    // curr->parent->exit_status = curr->tid;
     process_cleanup();
     sema_up(&curr->wait_sema);
     sema_down(&curr->exit_sema);
@@ -356,11 +346,6 @@ struct thread *get_child_process(int pid) {
         }
     }
     return NULL;
-}
-
-void remove_child_process(struct thread *cp) {
-    list_remove(&cp->child_elem);
-    palloc_free_page(cp);
 }
 
 static void start_process(void *f_name) {
@@ -488,6 +473,9 @@ static bool load(const char *file_name, struct intr_frame *if_) {
         goto done;
     }
 
+    t->exec_file = file;
+    file_deny_write(file);
+
     /* 실행 가능한 헤더 읽기 및 검증 */
     if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr ||
         memcmp(ehdr.e_ident, "\177ELF\2\1\1", 7) || ehdr.e_type != 2 ||
@@ -550,8 +538,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
                 break;
         }
     }
-    t->exec_file = file;
-    file_deny_write(file);
+
     /* 스택 초기화 */
     if (!setup_stack(if_)) goto done;
 
@@ -564,6 +551,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
     success = true;
 
 done:
+
     /* We arrive here whether the load is successful or not. */
     // file_close(file);
     return success;
