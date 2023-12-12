@@ -473,6 +473,9 @@ static bool load(const char *file_name, struct intr_frame *if_) {
         goto done;
     }
 
+    t->exec_file = file;
+    file_deny_write(file);
+
     /* 실행 가능한 헤더 읽기 및 검증 */
     if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr ||
         memcmp(ehdr.e_ident, "\177ELF\2\1\1", 7) || ehdr.e_type != 2 ||
@@ -535,8 +538,6 @@ static bool load(const char *file_name, struct intr_frame *if_) {
                 break;
         }
     }
-    t->exec_file = file;
-    // file_deny_write(file);
 
     /* 스택 초기화 */
     if (!setup_stack(if_)) goto done;
