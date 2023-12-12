@@ -95,24 +95,17 @@ bool sys_remove(const char *file) {
 }
 
 int sys_open(const char *file) {
-    int fd = -1;
-    struct file *open_file;
-
     if (file == NULL) sys_exit(-1);
 
-    lock_acquire(&filesys_lock);
-    if ((open_file = filesys_open(file)) != NULL) {
-        // printf("찾았다 빈틈의실!\n");
-        // printf("thread_name : %s\n", thread_name());
-        // printf("file_name : %s\n", file);
-        // file_deny_write(f);
-        fd = thread_current()->next_fd_idx++;
-        thread_current()->fd_table[fd] = open_file;
-        if (fd >= 64) fd = -1;
-    }
-    lock_release(&filesys_lock);
+    struct file *f = filesys_open(file);
 
-    return fd;
+    if (f == NULL) {
+        return -1;
+    }
+
+    thread_current()->fd_table[thread_current()->next_fd_idx] = f;
+
+    return thread_current()->next_fd_idx++;
 }
 
 int sys_filesize(int fd) {
