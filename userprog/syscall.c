@@ -50,14 +50,6 @@ void check_address(void *addr) {
     }
 }
 
-void get_argument(void *esp, int *arg, int count) {
-    int i;
-    for (i = 0; i < count; i++) {
-        check_address(esp + i * 8);
-        arg[i] = *(int *)(esp + i * 8);
-    }
-}
-
 void sys_halt(void) { power_off(); }
 
 void sys_exit(int status) {
@@ -70,7 +62,9 @@ pid_t sys_fork(const char *thread_name, struct intr_frame *if_) {
     return process_fork(thread_name, if_);
 }
 
-/*성공적으로 진행된다면 어떤 것도 반환하지 않습니다.
+/*
+요구사항:
+성공적으로 진행된다면 어떤 것도 반환하지 않습니다.
 만약 프로그램이 이 프로세스를 로드하지 못하거나
 다른 이유로 돌리지 못하게 되면 exit state -1을 반환하며 프로세스가 종료됩니다.*/
 int sys_exec(const char *file) {
@@ -80,32 +74,32 @@ int sys_exec(const char *file) {
 
 bool sys_create(const char *file, unsigned initial_size) {
     if (file == NULL) sys_exit(-1);
-    lock_acquire(&filesys_lock);
+    // lock_acquire(&filesys_lock);
     bool result = (filesys_create(file, initial_size));
-    lock_release(&filesys_lock);
+    // lock_release(&filesys_lock);
     return result;
 }
 
 bool sys_remove(const char *file) {
     if (file == NULL) sys_exit(-1);
-    lock_acquire(&filesys_lock);
+    // lock_acquire(&filesys_lock);
     bool result = (filesys_remove(file));
-    lock_release(&filesys_lock);
+    // lock_release(&filesys_lock);
     return result;
 }
 
-
 int sys_open(const char *file) {
- 
     if (file == NULL) sys_exit(-1);
-    // lock_acquire(&filesys_lock);
+
     struct file *f = filesys_open(file);
-  
-    // lock_release(&filesys_lock);
-    if (f == NULL || thread_current()->next_fd_idx >= 128) {
+
+    if (f == NULL) {
         return -1;
     }
- 
+    if (thread_current()->next_fd_idx >= 128) {
+        file_close(f);
+        return -1;
+    }
 
     thread_current()->fd_table[thread_current()->next_fd_idx] = f;
     return thread_current()->next_fd_idx++;
@@ -171,7 +165,6 @@ int sys_write(int fd, const void *buffer, unsigned size) {
         return size;
 
     } else if (2 <= fd && fd < 128) {
-
         struct file *curr_file = thread_current()->fd_table[fd];
         if (curr_file == NULL) return -1;
         lock_acquire(&filesys_lock);  // lock 걸기
@@ -183,9 +176,10 @@ int sys_write(int fd, const void *buffer, unsigned size) {
     }
 }
 
-void sys_seek(int fd, unsigned position) {
-    /* 열린 파일의 위치(offset)를 이동하는 시스템 콜
+/* 열린 파일의 위치(offset)를 이동하는 시스템 콜
     Position : 현재 위치(offset)를 기준으로 이동할 거리 */
+
+void sys_seek(int fd, unsigned position) {
     struct file *cur_file = process_get_file(fd);
 
     if (cur_file == NULL) {
@@ -195,9 +189,9 @@ void sys_seek(int fd, unsigned position) {
     file_seek(cur_file, position);
 }
 
+/* 열린 파일의 위치(offset)를 알려주는 시스템 콜
+   성공 시 파일의 위치(offset)를 반환, 실패 시 -1 반환 */
 unsigned sys_tell(int fd) {
-    /* 열린 파일의 위치(offset)를 알려주는 시스템 콜
-    성공 시 파일의 위치(offset)를 반환, 실패 시 -1 반환 */
     if (fd < 0 || fd >= thread_current()->next_fd_idx) {
         return -1;
     }
@@ -209,8 +203,8 @@ unsigned sys_tell(int fd) {
     return file_tell(cur_file);
 }
 
+/* 파일 객체(struct file)를 검색하는 함수 */
 struct file *process_get_file(int fd) {
-    /* 파일 객체(struct file)를 검색하는 함수 */
     struct thread *cur = thread_current();
     if (fd < 0 || fd >= cur->next_fd_idx) {
         return NULL;
@@ -284,14 +278,7 @@ void syscall_handler(struct intr_frame *f) {
             break;
 
         default:
-            printf("Unknown system call number: %d\n", syscall_number);
+            sys_exit(-1);
             break;
     }
-
-    // 시스템 콜 처리 결과를 RAX 레지스터에 저장
-    // f->R.rax = syscall_result;
-
-    // 시스템 콜이 종료된 후의 동작을 수행할 수 있습니다.
-    // 예를 들어, 스레드를 종료시키는 대신 다른 작업을 수행할 수 있습니다.
-    // thread_exit();
 }
