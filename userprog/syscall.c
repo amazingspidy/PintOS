@@ -80,31 +80,33 @@ int sys_exec(const char *file) {
 
 bool sys_create(const char *file, unsigned initial_size) {
     if (file == NULL) sys_exit(-1);
-    // lock_acquire(&filesys_lock);
+    lock_acquire(&filesys_lock);
     bool result = (filesys_create(file, initial_size));
-    // lock_release(&filesys_lock);
+    lock_release(&filesys_lock);
     return result;
 }
 
 bool sys_remove(const char *file) {
     if (file == NULL) sys_exit(-1);
-    // lock_acquire(&filesys_lock);
+    lock_acquire(&filesys_lock);
     bool result = (filesys_remove(file));
-    // lock_release(&filesys_lock);
+    lock_release(&filesys_lock);
     return result;
 }
 
-int sys_write(int fd, void *buffer, unsigned size) {
-    check_address(buffer);
-    lock_acquire(&filesys_lock);
-    if (fd == 1) {
-        putbuf(buffer, size);
-    } else {
-        file_write(process_get_file(fd), buffer, size);
-    }
-    lock_release(&filesys_lock);
-    return size;
-}
+// int add_file(struct file *f) {
+//     struct thread *curr = thread_current();
+//     struct file **curr_fd_table = curr->fd_table;
+//     for (int i = curr->next_fd_idx; i < 128; i++) {
+//         if (curr_fd_table[i] == NULL) {
+//             curr_fd_table[i] = f;
+//             curr->next_fd_idx = i;
+//             return curr->next_fd_idx;
+//         }
+//     }
+//     curr->next_fd_idx = 128;
+//     return -1;
+// }
 
 int sys_open(const char *file) {
     if (file == NULL) sys_exit(-1);
@@ -112,15 +114,12 @@ int sys_open(const char *file) {
     struct file *f = filesys_open(file);
 
     // lock_release(&filesys_lock);
-    if (f == NULL) {
+    if (f == NULL || thread_current()->next_fd_idx >= 128) {
         return -1;
     }
-    if (strcmp(thread_name(), file) == 0) {
-        printf("찾았다 빈틈의실!\n");
-        printf("thread_name : %s\n", thread_name());
-        printf("file_name : %s\n", file);
-        file_deny_write(f);
-    }
+    // int return_fd = add_file(f);
+    // return return_fd;
+
     thread_current()->fd_table[thread_current()->next_fd_idx] = f;
     return thread_current()->next_fd_idx++;
 }
@@ -149,18 +148,50 @@ void sys_close(int fd) {
 }
 
 int sys_read(int fd, void *buffer, unsigned size) {
-    check_address(buffer);
-    lock_acquire(&filesys_lock);
     if (fd == 0) {
-        unsigned i;
-        for (i = 0; i < size; i++) {
-            ((char *)buffer)[i] = input_getc();
+        int cnt = 0;
+        while (1) {             // size만큼 받았거나, '\n'이 오면 끝
+            if (cnt >= size) {  // size만큼 받은 경우
+                break;
+            }
+            cnt++;
+
+            char key = input_getc();
+            if (key == '\n') {  // '\n'이 온 경우
+                char *buffer = key;
+                break;
+            }
+
+            char *buffer = key;
+            buffer++;
         }
+    } else if (2 <= fd && fd < 128) {
+        struct file *curr_file = thread_current()->fd_table[fd];
+        if (curr_file == NULL) return -1;
+
+        lock_acquire(&filesys_lock);  // lock 걸기
+        off_t read_result = file_read(curr_file, buffer, size);
+        lock_release(&filesys_lock);  // lock 풀기
+        return read_result;
     } else {
-        file_read(process_get_file(fd), buffer, size);
+        return -1;
     }
-    lock_release(&filesys_lock);
-    return size;
+}
+
+int sys_write(int fd, const void *buffer, unsigned size) {
+    if (fd == 1) {
+        putbuf(buffer, size);
+        return size;
+    } else if (2 <= fd && fd < 128) {
+        struct file *curr_file = thread_current()->fd_table[fd];
+        if (curr_file == NULL) return -1;
+        lock_acquire(&filesys_lock);  // lock 걸기
+        off_t write_result = file_write(curr_file, buffer, size);
+        lock_release(&filesys_lock);  // lock 풀기
+        return write_result;
+    } else {
+        return -1;
+    }
 }
 
 void sys_seek(int fd, unsigned position) {
