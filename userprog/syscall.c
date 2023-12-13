@@ -80,39 +80,35 @@ int sys_exec(const char *file) {
 
 bool sys_create(const char *file, unsigned initial_size) {
     if (file == NULL) sys_exit(-1);
-    // lock_acquire(&filesys_lock);
+    lock_acquire(&filesys_lock);
     bool result = (filesys_create(file, initial_size));
-    // lock_release(&filesys_lock);
+    lock_release(&filesys_lock);
     return result;
 }
 
 bool sys_remove(const char *file) {
     if (file == NULL) sys_exit(-1);
-    // lock_acquire(&filesys_lock);
+    lock_acquire(&filesys_lock);
     bool result = (filesys_remove(file));
-    // lock_release(&filesys_lock);
+    lock_release(&filesys_lock);
     return result;
 }
 
+
 int sys_open(const char *file) {
-    int fd = -1;
-    struct file *open_file;
-
+ 
     if (file == NULL) sys_exit(-1);
-
-    lock_acquire(&filesys_lock);
-    if ((open_file = filesys_open(file)) != NULL) {
-        // printf("찾았다 빈틈의실!\n");
-        // printf("thread_name : %s\n", thread_name());
-        // printf("file_name : %s\n", file);
-        // file_deny_write(f);
-        fd = thread_current()->next_fd_idx++;
-        thread_current()->fd_table[fd] = open_file;
-        if (fd >= 64) fd = -1;
+    // lock_acquire(&filesys_lock);
+    struct file *f = filesys_open(file);
+  
+    // lock_release(&filesys_lock);
+    if (f == NULL || thread_current()->next_fd_idx >= 128) {
+        return -1;
     }
-    lock_release(&filesys_lock);
+ 
 
-    return fd;
+    thread_current()->fd_table[thread_current()->next_fd_idx] = f;
+    return thread_current()->next_fd_idx++;
 }
 
 int sys_filesize(int fd) {
@@ -156,7 +152,7 @@ int sys_read(int fd, void *buffer, unsigned size) {
             char *buffer = key;
             buffer++;
         }
-    } else if (2 <= fd && fd < 64) {
+    } else if (2 <= fd && fd < 128) {
         struct file *curr_file = thread_current()->fd_table[fd];
         if (curr_file == NULL) return -1;
 
@@ -173,7 +169,9 @@ int sys_write(int fd, const void *buffer, unsigned size) {
     if (fd == 1) {
         putbuf(buffer, size);
         return size;
-    } else if (2 <= fd && fd < 64) {
+
+    } else if (2 <= fd && fd < 128) {
+
         struct file *curr_file = thread_current()->fd_table[fd];
         if (curr_file == NULL) return -1;
         lock_acquire(&filesys_lock);  // lock 걸기

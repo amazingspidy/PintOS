@@ -133,6 +133,7 @@ struct thread {
     struct file **fd_table;     /* File descriptor table */
     int next_fd_idx;            /* File descriptor index */
     struct file *exec_file;     /* Executable file */
+   
 };
 
 /* If false (default), use round-robin scheduler.
