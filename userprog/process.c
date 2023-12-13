@@ -303,9 +303,6 @@ int process_wait(tid_t child_tid) {
     list_remove(&child->child_elem);
     sema_up(&child->exit_sema);
 
-    // 자식 프로세스의 종료 상태가 -1인 경우를 확인하는 assert 추가
-    ASSERT(child->exit_status == -1);
-
     return child->exit_status;
 }
 
