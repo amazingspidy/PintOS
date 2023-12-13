@@ -169,7 +169,7 @@ static void __do_fork(void *aux) {
     struct file **current_fdt = current->fd_table;
     struct file **parent_fdt = parent->fd_table;
     struct file *new_file;
-    for (int i = 2; i < 64; i++) {
+    for (int i = 2; i < 128; i++) {
         if (parent_fdt[i] != NULL) {
             new_file = file_duplicate(parent_fdt[i]);
             current_fdt[i] = new_file;
@@ -189,8 +189,8 @@ static void __do_fork(void *aux) {
     }
 error:
     sema_up(&(current->load_sema));
-    // exit(TID_ERROR)
-    thread_exit();
+    sys_exit(TID_ERROR);
+    // thread_exit();
 }
 
 /* f_name을 실행하는 컨텍스트로 현재 실행 컨텍스트를 전환합니다.
@@ -245,9 +245,6 @@ int process_exec(void *f_name) {
     // hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
     /* 로드에 실패하면 종료합니다. */
     palloc_free_page(safe_name);
-    if (!success) {
-        return -1;
-    }
 
     /* 스위칭된 프로세스를 시작합니다. */
     do_iret(&_if);
@@ -295,7 +292,6 @@ void argument_stack(char **parse, int count, void **rsp) {
  *
  * 이 함수는 문제 2-2에서 구현될 것입니다. 지금은 아무 것도 하지 않습니다. */
 int process_wait(tid_t child_tid) {
-    struct thread *curr = thread_current();
     struct thread *child = get_child_process(child_tid);
 
     // 해당하는 tid의 자식 프로세스가 없는 경우 -1 return
@@ -317,6 +313,9 @@ void process_close_file(int fd) {
     /*파일닫기*/
     struct thread *cur = thread_current();
     struct file **cur_fdt = cur->fd_table;
+    if (cur_fdt[fd] == NULL) {
+        return;
+    }
     file_close(cur_fdt[fd]);
     cur_fdt[fd] = NULL;
 }
@@ -327,10 +326,11 @@ void process_exit(void) {
     /* TODO: 여기에 코드가 들어갑니다.
      * TODO: 프로세스 종료 메시지 구현 (project2/process_termination.html 참조).
      * TODO: 프로세스 리소스 정리를 여기에서 구현하는 것이 좋습니다. */
-    for (int i = 2; i < 64; i++) {
+    for (int i = 2; i < 128; i++) {
         process_close_file(i);
     }
-    palloc_free_page(curr->fd_table);
+    // palloc_free_page(curr->fd_table);
+    palloc_free_multiple(curr->fd_table, 4);
     file_close(curr->exec_file);
     process_cleanup();
     sema_up(&curr->wait_sema);
@@ -542,6 +542,8 @@ static bool load(const char *file_name, struct intr_frame *if_) {
         }
     }
 
+    t->exec_file = file;
+    file_deny_write(file);
     /* 스택 초기화 */
     if (!setup_stack(if_)) goto done;
 
