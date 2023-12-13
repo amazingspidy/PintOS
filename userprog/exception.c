@@ -123,7 +123,7 @@ static void page_fault(struct intr_frame *f) {
     write = (f->error_code & PF_W) != 0;
     user = (f->error_code & PF_U) != 0;
 
-    exit(-1);
+    sys_exit(-1);
 
 #ifdef VM
     /* 프로젝트 3 이후에 대한 부분. */

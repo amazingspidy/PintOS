@@ -204,13 +204,15 @@ tid_t thread_create(const char *name, int priority, thread_func *function,
     t->tf.eflags = FLAG_IF;
 
     t->fd_table = palloc_get_page(PAL_ZERO);
-    t->next_fd_idx = 3;
+    t->next_fd_idx = 2;
 
     /*for hierarchical*/
     t->parent = thread_current();
     t->load_success = 0;  // 실패시 -1
     t->exit_called = false;
     t->exit_status = 0;
+    t->exec_file = NULL;
+
     sema_init(&(t->load_sema), 0);
     sema_init(&(t->exit_sema), 0);
     sema_init(&(t->wait_sema), 0);
