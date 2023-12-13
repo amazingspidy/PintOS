@@ -51,7 +51,7 @@ tid_t process_create_initd(const char *file_name) {
     char *arg1;
     char *next_ptr;
 
-    arg1 = strtok_r(file_name, " ", &next_ptr);
+    strtok_r(file_name, " ", &next_ptr);
     struct thread *test = thread_current();
     /* FILE_NAME을 실행하기 위해 새 스레드를 생성합니다. */
 
@@ -80,8 +80,9 @@ tid_t process_fork(const char *name, struct intr_frame *if_ UNUSED) {
     struct thread *parent = thread_current();
 
     // struct intr_frame *f = malloc(sizeof(struct intr_frame));
-    // memcpy(f, if_, sizeof(struct intr_frame)); /*이거 복제 안해줘도
-    // 되는데?*/
+    // memcpy(f, if_, sizeof(struct intr_frame)); /*이거 복제 안해줘도 됩니다.
+    // -이유를 생각해봅시다-
+
     tid_t tid = thread_create(name, PRI_DEFAULT, __do_fork, if_);
     if (tid == TID_ERROR) {
         return TID_ERROR;
@@ -110,6 +111,9 @@ static bool duplicate_pte(uint64_t *pte, void *va, void *aux) {
 
     /* 2. 부모의 페이지 맵 레벨 4에서 VA를 해석합니다. */
     parent_page = pml4_get_page(parent->pml4, va);
+    if (parent_page == NULL) {
+        return false;
+    }
 
     /* 3. TODO: 자식을 위한 새 PAL_USER 페이지를 할당하고
      *    TODO: 결과를 NEWPAGE로 설정합니다. */
@@ -138,7 +142,7 @@ static bool duplicate_pte(uint64_t *pte, void *va, void *aux) {
  * 힌트) parent->tf는 프로세스의 사용자 영역 컨텍스트를 유지하지 않습니다.
  *       즉, 이 함수에 process_fork의 두 번째 인수를 전달해야 합니다. */
 static void __do_fork(void *aux) {
-    struct intr_frame *parent_if = aux;
+    struct intr_frame *parent_if = (struct intr_frame *)aux;
     struct intr_frame if_;
     struct thread *parent = thread_current()->parent;
     struct thread *current = thread_current();
@@ -173,6 +177,8 @@ static void __do_fork(void *aux) {
         if (parent_fdt[i] != NULL) {
             new_file = file_duplicate(parent_fdt[i]);
             current_fdt[i] = new_file;
+        } else {
+            current_fdt[i] = NULL;
         }
     }
     current->next_fd_idx = parent->next_fd_idx;
@@ -201,7 +207,6 @@ int process_exec(void *f_name) {
     char *safe_name = (char *)palloc_get_page(PAL_ZERO);
     strlcpy(safe_name, (char *)f_name, strlen(f_name) + 1);
     bool success;
-    char *cur_name = thread_current()->name;
     /* 우리는 현재 스레드 구조체에 있는 intr_frame을 사용할 수 없습니다.
      * 이는 현재 스레드가 재스케줄될 때 실행 정보를 멤버에 저장하기 때문입니다.
      */
@@ -232,17 +237,17 @@ int process_exec(void *f_name) {
     success = load(safe_name, &_if);
     if (!success) {
         // exec-missing test case에서 이렇게 바꿔야 처리가 가능함.
-
         palloc_free_page(safe_name);
         return -1;
     }
     // 스택에 인자 넣기
 
     argument_stack(arg_list, count, &_if.rsp);
-    _if.R.rdi = count;
-    _if.R.rsi = (uint64_t)_if.rsp + 8;  // 이게맞나?
+    _if.R.rdi = count;                  // rdi에 argc값
+    _if.R.rsi = (uint64_t)_if.rsp + 8;  // rsi에 argv주소
 
     // hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+
     /* 로드에 실패하면 종료합니다. */
     palloc_free_page(safe_name);
 
@@ -326,8 +331,7 @@ void process_exit(void) {
     for (int i = 2; i < 128; i++) {
         process_close_file(i);
     }
-    // palloc_free_page(curr->fd_table);
-    palloc_free_multiple(curr->fd_table, 4);
+    palloc_free_page(curr->fd_table);
     file_close(curr->exec_file);
     process_cleanup();
     sema_up(&curr->wait_sema);

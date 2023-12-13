@@ -203,17 +203,15 @@ tid_t thread_create(const char *name, int priority, thread_func *function,
     t->tf.cs = SEL_KCSEG;
     t->tf.eflags = FLAG_IF;
 
-    // t->fd_table = palloc_get_page(PAL_ZERO);
-    t->fd_table = palloc_get_multiple(PAL_ZERO, 4);
+    t->fd_table = palloc_get_page(PAL_ZERO);
+    t->next_fd_idx = 2;
     if (t->fd_table == NULL) {
         return TID_ERROR;
     }
-    // t->next_fd_idx = 2;
+    
 
     /*for hierarchical*/
     t->parent = thread_current();
-    t->load_success = 0;  // 실패시 -1
-    t->exit_called = false;
     t->exit_status = 0;
     t->exec_file = NULL;
 
@@ -583,7 +581,6 @@ static void init_thread(struct thread *t, const char *name, int priority) {
     t->wake_up_time = 0;
 
     ///////위는 수정 금지///////
-    t->next_fd_idx = 2;
     list_init(&t->child_list); /*자식리스트 초기화*/
 }
 
