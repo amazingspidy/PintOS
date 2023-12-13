@@ -117,22 +117,27 @@ struct thread {
     struct intr_frame tf; /* Information for switching */
     unsigned magic;       /* Detects stack overflow. */
 
+
+    /*for hierarchical*/
     struct thread *parent;       /* Parent thread. */
     struct list child_list;      /* List of child threads. */
     struct list_elem child_elem; /* List element for child_list. */
-
-    int load_success; /* 자식 프로세스가 성공적으로 생성되었는지 여부 */
-    bool exit_called; /* 프로세스 종료 유무 */
-    int exit_status;  /* 정상적으로 종료되었는지 여부 */
-
     struct semaphore load_sema; /* 자식 프로세스가 load될 때까지
                                    부모프로세스를 block시키기 위한 semaphore */
     struct semaphore exit_sema; /*  자식 프로세스가 exit될 때까지 부모
                                       프로세스를 block시키기 위한 semaphore */
     struct semaphore wait_sema;
+    
+
+    int exit_status;  /* 정상적으로 종료되었는지 여부 */
+    
+    /*for file descriptor implement*/
     struct file **fd_table;     /* File descriptor table */
     int next_fd_idx;            /* File descriptor index */
+
+    /*for deny_write*/
     struct file *exec_file;     /* Executable file */
+   
 };
 
 /* If false (default), use round-robin scheduler.
