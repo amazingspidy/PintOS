@@ -94,31 +94,18 @@ bool sys_remove(const char *file) {
     return result;
 }
 
-// int add_file(struct file *f) {
-//     struct thread *curr = thread_current();
-//     struct file **curr_fd_table = curr->fd_table;
-//     for (int i = curr->next_fd_idx; i < 128; i++) {
-//         if (curr_fd_table[i] == NULL) {
-//             curr_fd_table[i] = f;
-//             curr->next_fd_idx = i;
-//             return curr->next_fd_idx;
-//         }
-//     }
-//     curr->next_fd_idx = 128;
-//     return -1;
-// }
 
 int sys_open(const char *file) {
+ 
     if (file == NULL) sys_exit(-1);
     // lock_acquire(&filesys_lock);
     struct file *f = filesys_open(file);
-
+  
     // lock_release(&filesys_lock);
     if (f == NULL || thread_current()->next_fd_idx >= 128) {
         return -1;
     }
-    // int return_fd = add_file(f);
-    // return return_fd;
+ 
 
     thread_current()->fd_table[thread_current()->next_fd_idx] = f;
     return thread_current()->next_fd_idx++;
@@ -182,7 +169,9 @@ int sys_write(int fd, const void *buffer, unsigned size) {
     if (fd == 1) {
         putbuf(buffer, size);
         return size;
+
     } else if (2 <= fd && fd < 128) {
+
         struct file *curr_file = thread_current()->fd_table[fd];
         if (curr_file == NULL) return -1;
         lock_acquire(&filesys_lock);  // lock 걸기
