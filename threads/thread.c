@@ -205,10 +205,12 @@ tid_t thread_create(const char *name, int priority, thread_func *function,
 
     t->fd_table = palloc_get_page(PAL_ZERO);
     t->next_fd_idx = 2;
+
+    // fork가 여러번 진행될시에, fd_table에 할당할 메모리조차 없을경우. ->
+    // 실제로 존재함.
     if (t->fd_table == NULL) {
         return TID_ERROR;
     }
-    
 
     /*for hierarchical*/
     t->parent = thread_current();

@@ -306,9 +306,10 @@ int process_wait(tid_t child_tid) {
 
     sema_down(&child->wait_sema);
     list_remove(&child->child_elem);
-    sema_up(&child->exit_sema);
+    int exit_status = child->exit_status;
 
-    return child->exit_status;
+    sema_up(&child->exit_sema);
+    return exit_status;
 }
 
 void process_close_file(int fd) {
