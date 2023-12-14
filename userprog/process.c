@@ -240,8 +240,8 @@ int process_exec(void *f_name) {
         palloc_free_page(safe_name);
         return -1;
     }
-    // 스택에 인자 넣기
 
+    // 스택에 인자 넣기
     argument_stack(arg_list, count, &_if.rsp);
     _if.R.rdi = count;                  // rdi에 argc값
     _if.R.rsi = (uint64_t)_if.rsp + 8;  // rsi에 argv주소
@@ -306,9 +306,10 @@ int process_wait(tid_t child_tid) {
 
     sema_down(&child->wait_sema);
     list_remove(&child->child_elem);
-    sema_up(&child->exit_sema);
+    int exit_status = child->exit_status;
 
-    return child->exit_status;
+    sema_up(&child->exit_sema);
+    return exit_status;
 }
 
 void process_close_file(int fd) {
@@ -470,6 +471,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
     if (t->pml4 == NULL) goto done;
     process_activate(thread_current());
 
+    lock_acquire(&filesys_lock);
     /* 실행 파일 열기 */
     file = filesys_open(file_name);
     if (file == NULL) {
@@ -557,9 +559,9 @@ static bool load(const char *file_name, struct intr_frame *if_) {
     success = true;
 
 done:
-
+    lock_release(&filesys_lock);
     /* We arrive here whether the load is successful or not. */
-    // file_close(file);
+    // file_close(file)
     return success;
 }
 
