@@ -146,8 +146,7 @@ static void __do_fork(void *aux) {
     struct intr_frame if_;
     struct thread *parent = thread_current()->parent;
     struct thread *current = thread_current();
-    char *test_parent_name = parent->name;
-    char *test_child_name = current->name;
+
     /* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
 
     bool succ = true;
@@ -685,13 +684,47 @@ static bool install_page(void *upage, void *kpage, bool writable) {
             pml4_set_page(t->pml4, upage, kpage, writable));
 }
 #else
-/* 여기서부터, 코드는 project 3 이후에 사용됩니다.
- * project 2에 대해서만 함수를 구현하려면 위의 블록에 구현하세요. */
+/* From here, codes will be used after project 3.
+ * If you want to implement the function for only project 2, implement it on the
+ * upper block. */
+struct lazy_load_info {
+    struct file *file;
+    off_t ofs;
+    size_t read_bytes;
+    size_t zero_bytes;
+    bool writable;
+};
 
 static bool lazy_load_segment(struct page *page, void *aux) {
     /* TODO: Load the segment from the file */
     /* TODO: This called when the first page fault occurs on address VA. */
     /* TODO: VA is available when calling this function. */
+    struct lazy_load_info *info = (struct lazy_load_info *)aux;
+    struct file *file = info->file;
+    off_t ofs = info->ofs;
+    size_t page_read_bytes = info->read_bytes;
+    size_t page_zero_bytes = info->zero_bytes;
+    bool writable = info->writable;
+
+    file_seek(file, ofs);
+
+    if (file_read(file, page->frame->kva, page_read_bytes) !=
+        (int)page_read_bytes) {
+        palloc_free_page(page->frame->kva);
+        return false;
+    }
+    memset(page->frame->kva + page_read_bytes, 0, page_zero_bytes);
+
+    // /* Add the page to the process's address space. */
+    // if (!install_page(page->va, page->frame->kva, writable)) {
+    //     printf("fail\n");
+    //     palloc_free_page(page->frame->kva);
+    //     return false;
+    // }
+
+    free(aux);
+
+    return true;
 }
 
 /* Loads a segment starting at offset OFS in FILE at address
@@ -708,6 +741,7 @@ static bool lazy_load_segment(struct page *page, void *aux) {
  *
  * Return true if successful, false if a memory allocation error
  * or disk read error occurs. */
+
 static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
                          uint32_t read_bytes, uint32_t zero_bytes,
                          bool writable) {
@@ -723,15 +757,29 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
         size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
         /* TODO: Set up aux to pass information to the lazy_load_segment. */
+        /*당신은 바이너리 파일을 로드할 때 필수적인 정보를 포함하는
+        구조체를 생성하는 것이 좋습니다.*/
         void *aux = NULL;
-        if (!vm_alloc_page_with_initializer(VM_ANON, upage, writable,
-                                            lazy_load_segment, aux))
-            return false;
+        struct lazy_load_info *aux_info =
+            (struct lazy_load_info *)malloc(sizeof(struct lazy_load_info));
+        aux_info->file = file;
+        aux_info->ofs = ofs;
+        aux_info->read_bytes = page_read_bytes;
+        aux_info->zero_bytes = page_zero_bytes;
+        aux_info->writable = writable;
+        // upage는 vm_alloc_page_with_initializer에 직접 전달됨.
+        aux = aux_info;
 
+        if (!vm_alloc_page_with_initializer(VM_ANON, upage, writable,
+                                            lazy_load_segment, aux)) {
+            free(aux_info);
+            return false;
+        }
         /* Advance. */
         read_bytes -= page_read_bytes;
         zero_bytes -= page_zero_bytes;
         upage += PGSIZE;
+        ofs += page_read_bytes;
     }
     return true;
 }
@@ -745,7 +793,19 @@ static bool setup_stack(struct intr_frame *if_) {
      * TODO: If success, set the rsp accordingly.
      * TODO: You should mark the page is stack. */
     /* TODO: Your code goes here */
+    if (vm_alloc_page(VM_ANON, stack_bottom, true)) {
+        if (vm_claim_page(stack_bottom)) {
+            if_->rsp = USER_STACK;
+            success = true;
+        }
+    }
+    struct page *stack_page =
+        spt_find_page(&thread_current()->spt, stack_bottom);
 
+    if (stack_page != NULL) {
+        stack_page->is_stack = true;
+        success = true;
+    }
     return success;
 }
 #endif /* VM */
