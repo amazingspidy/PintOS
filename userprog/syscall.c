@@ -223,6 +223,7 @@ void syscall_handler(struct intr_frame *f) {
     // 시스템 콜 번호를 RAX 레지스터로부터 읽어옵니다.
 
     int syscall_number = f->R.rax;
+    thread_current()->user_rsp = f->rsp;
 
     unsigned initial_size;
     const char *file;

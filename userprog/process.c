@@ -244,6 +244,7 @@ int process_exec(void *f_name) {
     argument_stack(arg_list, count, &_if.rsp);
     _if.R.rdi = count;                  // rdi에 argc값
     _if.R.rsi = (uint64_t)_if.rsp + 8;  // rsi에 argv주소
+    thread_current()->user_rsp = _if.rsp;
 
     // hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 
@@ -745,6 +746,10 @@ static bool lazy_load_segment(struct page *page, void *aux) {
 static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
                          uint32_t read_bytes, uint32_t zero_bytes,
                          bool writable) {
+    // msg("load_segment");
+    // printf("file : %p, ofs : %d, upage : %p, read_bytes : %d, zero_bytes : %d, "
+    //        "writable : %d\n",
+    //        file, ofs, upage, read_bytes, zero_bytes, writable);
     ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
     ASSERT(pg_ofs(upage) == 0);
     ASSERT(ofs % PGSIZE == 0);
@@ -776,6 +781,7 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
             return false;
         }
         /* Advance. */
+        // printf("read_bytes : %d, page_read_bytes : %d, rsp : %p\n", read_bytes, page_read_bytes, upage);
         read_bytes -= page_read_bytes;
         zero_bytes -= page_zero_bytes;
         upage += PGSIZE;
@@ -786,6 +792,7 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
 
 /* Create a PAGE of stack at the USER_STACK. Return true on success. */
 static bool setup_stack(struct intr_frame *if_) {
+
     bool success = false;
     void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
 
@@ -799,13 +806,7 @@ static bool setup_stack(struct intr_frame *if_) {
             success = true;
         }
     }
-    struct page *stack_page =
-        spt_find_page(&thread_current()->spt, stack_bottom);
 
-    if (stack_page != NULL) {
-        stack_page->is_stack = true;
-        success = true;
-    }
     return success;
 }
 #endif /* VM */
