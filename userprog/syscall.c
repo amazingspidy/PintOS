@@ -234,7 +234,7 @@ void syscall_handler(struct intr_frame *f) {
 
     int syscall_number = f->R.rax;
     thread_current()->user_rsp = f->rsp;
-
+    
     unsigned initial_size;
     const char *file;
     // 시스템 콜 번호에 따라 적절한 처리 수행
