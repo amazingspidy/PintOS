@@ -62,7 +62,12 @@ uninit_initialize (struct page *page, void *kva) {
  * PAGE will be freed by the caller. */
 static void
 uninit_destroy (struct page *page) {
-	struct uninit_page *uninit UNUSED = &page->uninit;
-	/* TODO: Fill this function.
-	 * TODO: If you don't have anything to do, just return. */
+    if (page->operations == &uninit_ops) {
+        struct uninit_page *uninit = &page->uninit;
+        /* 페이지의 보조 정보를 해제합니다. */
+        if (uninit->aux != NULL) {
+            file_close(uninit->aux);
+            uninit->aux = NULL;
+        }
+    }
 }
