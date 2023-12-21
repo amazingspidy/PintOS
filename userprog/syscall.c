@@ -17,6 +17,8 @@
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
 struct file *process_get_file(int fd);
+//struct page* check_address(void *addr);
+
 typedef int pid_t;
 /* 시스템 콜.
  *
@@ -50,6 +52,14 @@ void check_address(void *addr) {
     }
 }
 
+/*struct page * check_address(void *addr) {
+	if (addr == NULL || is_kernel_vaddr(addr)) {
+		sys_exit(-1);
+	}
+
+	return spt_find_page(&thread_current()->spt, addr);
+}
+*/
 void sys_halt(void) { power_off(); }
 
 void sys_exit(int status) {
@@ -223,7 +233,8 @@ void syscall_handler(struct intr_frame *f) {
     // 시스템 콜 번호를 RAX 레지스터로부터 읽어옵니다.
 
     int syscall_number = f->R.rax;
-
+    thread_current()->user_rsp = f->rsp;
+    
     unsigned initial_size;
     const char *file;
     // 시스템 콜 번호에 따라 적절한 처리 수행

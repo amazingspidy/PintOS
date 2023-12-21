@@ -244,6 +244,7 @@ int process_exec(void *f_name) {
     argument_stack(arg_list, count, &_if.rsp);
     _if.R.rdi = count;                  // rdi에 argc값
     _if.R.rsi = (uint64_t)_if.rsp + 8;  // rsi에 argv주소
+    thread_current()->user_rsp = _if.rsp;
 
     // hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 
@@ -799,13 +800,7 @@ static bool setup_stack(struct intr_frame *if_) {
             success = true;
         }
     }
-    struct page *stack_page =
-        spt_find_page(&thread_current()->spt, stack_bottom);
 
-    if (stack_page != NULL) {
-        stack_page->is_stack = true;
-        success = true;
-    }
     return success;
 }
 #endif /* VM */
