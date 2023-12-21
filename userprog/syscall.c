@@ -16,6 +16,7 @@
 #include "userprog/syscall.h"
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
+void *mmap (void *addr, size_t length, int writable, int fd, off_t offset);
 struct file *process_get_file(int fd);
 //struct page* check_address(void *addr);
 
@@ -292,4 +293,18 @@ void syscall_handler(struct intr_frame *f) {
             sys_exit(-1);
             break;
     }
+}
+
+void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
+    // 파일 시스템에 있는 특정 파일을 프로세스의 가상 주소 공간에 매핑하는 역할
+
+    // fd로 지정된 파일 열기 -> offset byte부터 length byte 까지 가상 주소 공간의 addr에 매핑
+
+    /* 호출 실패하는 경우
+    1. 파일 길이 0바이트
+    2. addr이 페이지 정렬되지 않았거나, 이미 매핑된 페이지 집합과 겹치는 경우 (메모리 일관성 유지)
+    3. length가 0인 경우
+    4. 콘솔 입 출력을 나타내는 파일 설명자
+    */
+
 }
